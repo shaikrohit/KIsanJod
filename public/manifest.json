@@ -1,0 +1,27 @@
+{
+  "name": "KisanJod - किसान जोड़",
+  "short_name": "KisanJod",
+  "description": "Digital Mandi Slot Booking & Procurement Platform - Department of Consumer Affairs (DoCA)",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FDFBF7",
+  "theme_color": "#1B5E20",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["government", "agriculture", "productivity"],
+  "lang": "en",
+  "dir": "ltr"
+}

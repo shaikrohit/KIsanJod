@@ -1,0 +1,282 @@
+// ============================================================================
+// KisanJod - Digital Procurement & Mandi Slot Booking Platform
+// Department of Consumer Affairs (DoCA), Government of India
+// Database: SQLite (local development) / PostgreSQL portable via DATABASE_URL
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ----------------------------------------------------------------------------
+// 1. Farmer Identity & Profile
+// ----------------------------------------------------------------------------
+model Farmer {
+  id                 String   @id @default(cuid())
+  aadhaarNumber      String   @unique // 12-digit numeric UID (e.g. "548912345678")
+  maskedAadhaar      String   // e.g. "XXXXXXXX5678"
+  fullName           String
+  phoneNumber        String   // e.g. "9814012345"
+  state              String   // e.g. "Punjab", "Andhra Pradesh"
+  district           String   // e.g. "Ludhiana", "Guntur"
+  village            String   // e.g. "Rampur"
+  languagePreference String   @default("en") // "en", "hi", "te"
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  landRecords      LandRecord[]
+  bankAccounts     BankAccount[]
+  bookings         Booking[]
+  procurementBills ProcurementBill[]
+}
+
+// ----------------------------------------------------------------------------
+// 2. Land Record & Khasra / Acreage Quota
+// ----------------------------------------------------------------------------
+model LandRecord {
+  id                            String   @id @default(cuid())
+  farmerId                      String
+  khasraNumber                  String   // e.g. "142/1, 142/2"
+  khatauniNumber                String   // e.g. "KH-00421"
+  village                       String
+  subDistrictTehsil             String   // e.g. "Ludhiana West"
+  district                      String
+  state                         String
+  totalLandAreaAcres            Float
+  cropSeason                    String   // "RABI_2024_25", "KHARIF_2024_25"
+  verifiedSownCrop              String   // e.g. "Wheat", "Paddy", "Chana"
+  sownAreaAcres                 Float
+  mspProductivityNormQtlPerAcre Float    // e.g. 25.0
+  maxProcurementQuotaQtl        Float    // sownAreaAcres * mspProductivityNormQtlPerAcre
+  utilizedQuotaQtl              Float    @default(0.0)
+  createdAt                     DateTime @default(now())
+  updatedAt                     DateTime @updatedAt
+
+  farmer Farmer @relation(fields: [farmerId], references: [id], onDelete: Cascade)
+
+  @@index([farmerId])
+}
+
+// ----------------------------------------------------------------------------
+// 3. Bank Account & PFMS APBS Routing
+// ----------------------------------------------------------------------------
+model BankAccount {
+  id                  String   @id @default(cuid())
+  farmerId            String
+  bankName            String   // e.g. "Punjab National Bank"
+  accountNumberMasked String   // e.g. "XXXXXX4512"
+  ifscCode            String   // e.g. "PUNB0012300"
+  pfmsBeneficiaryCode String   @unique // e.g. "PFMS-BEN-548912"
+  isAadhaarLinked     Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  farmer Farmer @relation(fields: [farmerId], references: [id], onDelete: Cascade)
+
+  @@index([farmerId])
+}
+
+// ----------------------------------------------------------------------------
+// 4. Mandi Procurement Center
+// ----------------------------------------------------------------------------
+model ProcurementCenter {
+  id               String   @id @default(cuid())
+  centerCode       String   @unique // e.g. "MND-LUD-01"
+  name             String   // e.g. "Ludhiana Central Grain Mandi"
+  state            String   // e.g. "Punjab"
+  district         String   // e.g. "Ludhiana"
+  address          String
+  latitude         Float    // e.g. 30.9010
+  longitude        Float    // e.g. 75.8573
+  baysCount        Int      @default(2) // Number of parallel weighing bays
+  maxDailySlots    Int      @default(30)
+  dailyCapacityQtl Float    @default(3000.0) // Daily handling capacity in quintals
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  baysCount             Int      @default(2) // Number of parallel weighing bays
+  id                    String   @id @default(cuid())
+  centerCode            String   @unique // e.g. "MND-LUD-01"
+  name                  String   // e.g. "Ludhiana Central Grain Mandi"
+  state                 String   // e.g. "Punjab"
+  district              String   // e.g. "Ludhiana"
+  address               String
+  latitude              Float    // e.g. 30.9010
+  longitude             Float    // e.g. 75.8573
+  baysCount             Int      @default(2) // Number of parallel weighing bays
+  activeWorkers         Int      @default(4) // Active Hamal / Palledar labor gang size (default: 4)
+  maxDailySlots         Int      @default(30)
+  dailyCapacityQtl      Float    @default(3000.0) // Daily handling capacity in quintals
+  morningSessionStart   String   @default("09:00") // 9:00 AM
+  morningSessionEnd     String   @default("13:00") // 1:00 PM
+  afternoonSessionStart String   @default("15:00") // 3:00 PM (2-hour lunch break: 1 PM - 3 PM)
+  afternoonSessionEnd   String   @default("17:00") // 5:00 PM
+  eveningSessionEnabled Boolean  @default(false) // Optional Night Shift for peak harvest
+  eveningSessionStart   String   @default("19:00") // 7:00 PM
+  eveningSessionEnd     String   @default("23:00") // 11:00 PM
+  isActive              Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  operators        Operator[]
+  bookings         Booking[]
+  procurementBills ProcurementBill[]
+  hourlyCapacities HourlySlotCapacity[]
+}
+
+// ----------------------------------------------------------------------------
+// 5. Mandi Centre Operator
+// ----------------------------------------------------------------------------
+model Operator {
+  id          String   @id @default(cuid())
+  centerId    String
+  employeeId  String   @unique // e.g. "EMP-LUD-001"
+  fullName    String   // e.g. "Harpreet Sharma"
+  pinCode     String   // 4-digit PIN e.g. "1234"
+  phoneNumber String?
+  role        String   @default("OPERATOR") // "OPERATOR", "SUPERVISOR"
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  center           ProcurementCenter @relation(fields: [centerId], references: [id], onDelete: Restrict)
+  procurementBills ProcurementBill[]
+
+  @@index([centerId])
+}
+
+// ----------------------------------------------------------------------------
+// 6. Slot Booking & Sequential Queue Token
+// ----------------------------------------------------------------------------
+model Booking {
+  id                   String   @id @default(cuid())
+  bookingNumber        String   @unique // e.g. "BK-2026-001"
+  tokenNumber          String   // e.g. "TK-001", sequential per center/date
+  farmerId             String
+  centerId             String
+  cropName             String   // "Wheat", "Paddy", "Chana", "Moong", "Onion", "Tomato", "Potato"
+  commodityCategory    String   // "GRAINS", "PULSES", "VEGETABLES_FRUITS"
+  unitType             String   // "GUNNY_BAG_50KG", "CRATE_25KG", "QUINTALS"
+  packageCount         Int      @default(0)
+  estimatedQuantityQtl Float
+  bookedDate           String   // Format: YYYY-MM-DD
+  scheduledSlotStart   String   // Format: HH:mm (e.g. "09:30")
+  scheduledSlotEnd     String   // Format: HH:mm (e.g. "10:00")
+  dynamicEta           String   // Format: HH:mm (live dynamic ripple recalculated ETA)
+  delayMinutes         Int      @default(0) // Accumulated mandi delay in minutes
+  status               String   @default("WAITING") // "WAITING", "CALLED", "AT_BAY", "STANDBY", "COMPLETED", "CANCELLED"
+  bayAssigned          Int?     // Bay number 1, 2, 3
+  status               String   @default("WAITING") // "WAITING", "CALLED", "STANDBY", "COMPLETED", "CANCELLED"
+  sessionName          String   @default("MORNING") // "MORNING", "AFTERNOON"
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  farmer          Farmer            @relation(fields: [farmerId], references: [id], onDelete: Cascade)
+  center          ProcurementCenter @relation(fields: [centerId], references: [id], onDelete: Restrict)
+  queueEvents     QueueEvent[]
+  procurementBill ProcurementBill?
+
+  @@unique([centerId, bookedDate, tokenNumber])
+  @@index([centerId, bookedDate])
+  @@index([farmerId])
+  @@index([status])
+}
+
+// ----------------------------------------------------------------------------
+// 7. Real-Time Queue Events & Ripple Audit Log
+// ----------------------------------------------------------------------------
+model QueueEvent {
+  id           String   @id @default(cuid())
+  bookingId    String
+  eventType    String   // "SLOT_CONFIRMED", "CALLED_TO_BAY", "TURN_NEARING_10MIN", "STANDBY_MARKED", "STANDBY_RESUMED", "COMPLETED"
+  description  String
+  triggeredBy  String   // "SYSTEM" or "OPERATOR"
+  metadataJson String?  // Optional JSON metadata payload
+  timestamp    DateTime @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@index([eventType])
+}
+
+// ----------------------------------------------------------------------------
+// 8. Mandi Procurement Bill (Digital J-Form Receipt)
+// ----------------------------------------------------------------------------
+model ProcurementBill {
+  id                  String   @id @default(cuid())
+  billNumber          String   @unique // e.g. "JF-2026-LUD01-00104"
+  bookingId           String   @unique
+  centerId            String
+  operatorId          String
+  farmerId            String
+  cropName            String
+  qualityGrade        String   // "GRADE_A", "FAQ"
+  measuredMoisturePct Float
+  grossWeightQtl      Float
+  tareWeightQtl       Float
+  netWeightQtl        Float
+  notifiedMspRate     Float    // e.g. 2275.00
+  grossAmountPayable  Float    // netWeightQtl * notifiedMspRate
+  deductionsAmount    Float    @default(0.0) // 0.00 for official government procurement
+  netAmountPayable    Float    // grossAmountPayable - deductionsAmount
+  digitalSealHash     String   // SHA-256 digital verification seal
+  qrPayload           String   // Verification QR code string
+  issuedAt            DateTime @default(now())
+
+  booking    Booking           @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  center     ProcurementCenter @relation(fields: [centerId], references: [id], onDelete: Restrict)
+  operator   Operator          @relation(fields: [operatorId], references: [id], onDelete: Restrict)
+  farmer     Farmer            @relation(fields: [farmerId], references: [id], onDelete: Cascade)
+  dbtPayment DbtPayment?
+
+  @@index([centerId])
+  @@index([farmerId])
+  @@index([operatorId])
+}
+
+// ----------------------------------------------------------------------------
+// 9. Transparent Direct Benefit Transfer (PFMS / DBT) Payment
+// ----------------------------------------------------------------------------
+model DbtPayment {
+  id                  String    @id @default(cuid())
+  billId              String    @unique
+  pfmsReferenceNumber String    @unique // e.g. "PFMS-2026-DOCA-LUD01-00104"
+  status              String    @default("PROCESSING") // "PROCESSING", "CREDITED", "FAILED"
+  beneficiaryMaskedAc String
+  bankIfsc            String
+  bankName            String
+  bankUtr             String?   // 16-character alphanumeric UTR e.g. "PUNBH26251098765"
+  amountInr           Float
+  disbursementDate    DateTime?
+  failureReason       String?
+  createdAt           DateTime  @default(now())
+  creditedAt          DateTime?
+
+  bill ProcurementBill @relation(fields: [billId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+}
+
+// ----------------------------------------------------------------------------
+// 10. Hourly Slot Capacity & Utilization
+// ----------------------------------------------------------------------------
+model HourlySlotCapacity {
+  id          String @id @default(cuid())
+  centerId    String
+  date        String // Format: YYYY-MM-DD
+  hourOfDay   Int    // 8 to 17 (08:00 to 17:00)
+  bookedCount Int    @default(0)
+  maxCapacity Int    @default(4) // 4 slots per hour for 2-bay mandi
+
+  center ProcurementCenter @relation(fields: [centerId], references: [id], onDelete: Cascade)
+
+  @@unique([centerId, date, hourOfDay])
+  @@index([centerId, date])
+}
+

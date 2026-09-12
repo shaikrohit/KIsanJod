@@ -1,0 +1,40 @@
+{
+  "name": "kisanjod",
+  "version": "1.0.0",
+  "private": true,
+  "description": "KisanJod - Digital Procurement & Mandi Slot Booking PWA for Department of Consumer Affairs",
+  "scripts": {
+    "dev": "next dev --hostname 0.0.0.0",
+    "dev": "node scripts/dev.js",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push --accept-data-loss",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:reset": "prisma db push --force-reset --accept-data-loss && tsx prisma/seed.ts",
+    "verify": "tsx scripts/verify_core_flows.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "5.21.1",
+    "clsx": "^2.1.1",
+    "date-fns": "^3.6.0",
+    "lucide-react": "^0.453.0",
+    "next": "14.2.15",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "tailwind-merge": "^2.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.16.11",
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47",
+    "prisma": "5.21.1",
+    "tailwindcss": "3.4.14",
+    "tsx": "4.19.1",
+    "typescript": "5.6.3"
+  }
+}
+
