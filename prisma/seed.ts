@@ -520,28 +520,24 @@ async function main() {
   const tomorrowStr = tomorrow.toISOString().split("T")[0];
 
   const datesToSeed = [todayStr, tomorrowStr];
-  let capacityRecordsCount = 0;
-
+  const capacityRecords = [];
   for (const center of PROCUREMENT_CENTERS_SEED) {
     const centerDbId = centerIdMap[center.centerCode];
     for (const dateStr of datesToSeed) {
       for (let hour = 8; hour <= 17; hour++) {
-        // Standard capacity: 8 slots per hour for 4-worker mandi team
         const maxCapacity = (center.activeWorkers || 4) * 2;
-        await prisma.hourlySlotCapacity.create({
-          data: {
-            centerId: centerDbId,
-            date: dateStr,
-            hourOfDay: hour,
-            bookedCount: 0,
-            maxCapacity: maxCapacity,
-          },
+        capacityRecords.push({
+          centerId: centerDbId,
+          date: dateStr,
+          hourOfDay: hour,
+          bookedCount: 0,
+          maxCapacity: maxCapacity,
         });
-        capacityRecordsCount++;
       }
     }
   }
-  console.log(`✅ Seeded ${capacityRecordsCount} Hourly Slot Capacity Records.`);
+  await prisma.hourlySlotCapacity.createMany({ data: capacityRecords });
+  console.log(`✅ Seeded ${capacityRecords.length} Hourly Slot Capacity Records.`);
 
   // Phase F: Seed Sample Initial Queue State (Live Verification Fixtures)
   console.log("🎯 Seeding Initial Live Verification Fixtures (Completed Bill & Active Queue)...");

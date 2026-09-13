@@ -26,3 +26,4 @@ if (target === "postgresql") {
 
 fs.writeFileSync(schemaPath, content, "utf8");
 console.log("Done! Run 'npx prisma generate' to update Prisma Client.");
+
