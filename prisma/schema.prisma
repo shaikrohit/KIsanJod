@@ -99,19 +99,8 @@ model ProcurementCenter {
   isActive         Boolean  @default(true)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
-  baysCount             Int      @default(2) // Number of parallel weighing bays
-  id                    String   @id @default(cuid())
-  centerCode            String   @unique // e.g. "MND-LUD-01"
-  name                  String   // e.g. "Ludhiana Central Grain Mandi"
-  state                 String   // e.g. "Punjab"
-  district              String   // e.g. "Ludhiana"
-  address               String
-  latitude              Float    // e.g. 30.9010
-  longitude             Float    // e.g. 75.8573
-  baysCount             Int      @default(2) // Number of parallel weighing bays
+
   activeWorkers         Int      @default(4) // Active Hamal / Palledar labor gang size (default: 4)
-  maxDailySlots         Int      @default(30)
-  dailyCapacityQtl      Float    @default(3000.0) // Daily handling capacity in quintals
   morningSessionStart   String   @default("09:00") // 9:00 AM
   morningSessionEnd     String   @default("13:00") // 1:00 PM
   afternoonSessionStart String   @default("15:00") // 3:00 PM (2-hour lunch break: 1 PM - 3 PM)
@@ -119,9 +108,6 @@ model ProcurementCenter {
   eveningSessionEnabled Boolean  @default(false) // Optional Night Shift for peak harvest
   eveningSessionStart   String   @default("19:00") // 7:00 PM
   eveningSessionEnd     String   @default("23:00") // 11:00 PM
-  isActive              Boolean  @default(true)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
 
   operators        Operator[]
   bookings         Booking[]
