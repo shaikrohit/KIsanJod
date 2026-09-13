@@ -103,6 +103,9 @@ export async function POST(req: NextRequest) {
     if (!slot) {
       slot = await db.hourlySlotCapacity.create({
         data: {
+    let slot = await db.hourlySlotCapacity.upsert({
+      where: {
+        centerId_date_hourOfDay: {
           centerId,
           date,
           hourOfDay: startHour,
@@ -111,6 +114,16 @@ export async function POST(req: NextRequest) {
         },
       });
     }
+      },
+      update: {},
+      create: {
+        centerId,
+        date,
+        hourOfDay: startHour,
+        maxCapacity: 10,
+        bookedCount: 0,
+      },
+    });
 
     // Determine session name and sequential session token (e.g. M-001, A-001)
     const sessionNameResolved = sessionName || (startHour < 14 ? "MORNING" : "AFTERNOON");
@@ -123,6 +136,8 @@ export async function POST(req: NextRequest) {
 
     // Create booking
     const bookingNumber = `BK-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    const bookingNumber = `BK-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}-${randomSuffix}`;
 
     const booking = await db.booking.create({
       data: {
@@ -210,6 +225,10 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     console.error("Booking error:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Server error" },
+      { status: 500 }
+    );
   }
 }
 

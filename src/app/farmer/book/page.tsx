@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLanguage, getCropName } from "@/lib/i18n";
 import { calculateHandlingDuration, formatDurationHoursMinutes, HandlingModelOutput } from "@/lib/handlingDuration";
@@ -224,6 +225,33 @@ interface SessionsPayload {
   afternoonSession: SessionInfo;
 }
 
+const FALLBACK_CENTRES: Centre[] = [
+  {
+    id: "center_lud_01",
+    name: "Ludhiana Central Grain Mandi",
+    district: "Ludhiana",
+    state: "Punjab",
+  },
+  {
+    id: "center_gnt_01",
+    name: "Guntur Agricultural Market Yard",
+    district: "Guntur",
+    state: "Andhra Pradesh",
+  },
+  {
+    id: "center_seh_01",
+    name: "Sehore Krishi Upaj Mandi",
+    district: "Sehore",
+    state: "Madhya Pradesh",
+  },
+  {
+    id: "center_nsk_01",
+    name: "Nashik Lasalgaon APMC Market",
+    district: "Nashik",
+    state: "Maharashtra",
+  },
+];
+
 function BookingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -246,6 +274,10 @@ function BookingContent() {
 
   const [centres, setCentres] = useState<Centre[]>([]);
   const [selectedCentre, setSelectedCentre] = useState<Centre | null>(null);
+  const [centres, setCentres] = useState<Centre[]>(FALLBACK_CENTRES);
+  const [selectedCentre, setSelectedCentre] = useState<Centre | null>(FALLBACK_CENTRES[0]);
+  const [loadingCentres, setLoadingCentres] = useState(false);
+  const [loadingSlots, setLoadingSlots] = useState(false);
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split("T")[0]
   );
@@ -303,6 +335,8 @@ function BookingContent() {
   }, [preSelectedCropKey, preSelectedPackageCount, preSelectedCategory]);
 
   useEffect(() => {
+  const fetchCentres = useCallback(() => {
+    setLoadingCentres(true);
     fetch("/api/centres")
       .then((r) => r.json())
       .then((d) => {
@@ -319,13 +353,28 @@ function BookingContent() {
         }
       })
       .catch(console.error);
+      .catch((err) => console.error("Error loading centres:", err))
+      .finally(() => setLoadingCentres(false));
   }, [preSelectedCentreId]);
+
+  useEffect(() => {
+    fetchCentres();
+  }, [fetchCentres]);
+
+  // Safety net: auto-recover centres and selection on Step 3
+  useEffect(() => {
+    if (step === 3) {
+      if (centres.length === 0) fetchCentres();
+      if (!selectedCentre && centres.length > 0) setSelectedCentre(centres[0]);
+    }
+  }, [step, centres, selectedCentre, fetchCentres]);
 
   // Fetch dynamic continuous slots when centre, date, or load changes
   useEffect(() => {
     if (selectedCentre && selectedDate && selectedCrop) {
       const unitType = selectedCrop.packaging;
       const url = `/api/centres/${selectedCentre.id}/slots?date=${selectedDate}&packageCount=${packageCount}&unitType=${unitType}&capacityKg=${capacityKg}&workers=${activeWorkers}`;
+      setLoadingSlots(true);
       fetch(url)
         .then((r) => r.json())
         .then((d) => {
@@ -378,8 +427,13 @@ function BookingContent() {
           }
         })
         .catch(console.error);
+        .catch(console.error)
+        .finally(() => {
+          setLoadingSlots(false);
+        });
     }
   }, [selectedCentre, selectedDate, packageCount, capacityKg, selectedCrop, activeWorkers]);
+  }, [selectedCentre, selectedDate, selectedCrop, packageCount, capacityKg, activeWorkers]);
 
   // Calculate handling duration and net weight using authoritative research formula
   const handlingResult: HandlingModelOutput = calculateHandlingDuration({
@@ -925,6 +979,21 @@ function BookingContent() {
                 </p>
               </button>
             ))}
+
+            {centres.length === 0 && (
+              <div className="p-5 rounded-2xl bg-amber-50 border border-amber-200 text-center space-y-2">
+                <p className="text-xs font-bold text-amber-900">
+                  Loading Mandi Procurement Centres...
+                </p>
+                <button
+                  type="button"
+                  onClick={() => fetchCentres()}
+                  className="px-4 py-2 bg-emerald-800 text-white font-bold text-xs rounded-xl shadow-sm"
+                >
+                  Reload Centres
+                </button>
+              </div>
+            )}
           </div>
 
           {selectedCentre && (
@@ -941,6 +1010,16 @@ function BookingContent() {
                   className="w-full p-3.5 border-2 border-emerald-300 rounded-2xl bg-white text-base font-extrabold shadow-sm focus:border-emerald-600 focus:outline-none"
                 />
               </div>
+
+              {/* Slot Calculation Loader */}
+              {loadingSlots && !sessionsData && (
+                <div className="p-6 rounded-2xl bg-emerald-50/80 border border-emerald-200 text-center space-y-2.5">
+                  <div className="w-8 h-8 border-3 border-emerald-700 border-t-transparent rounded-full animate-spin mx-auto" />
+                  <p className="text-xs font-black text-emerald-900">
+                    Computing Shift Schedules & Palledar Timelines...
+                  </p>
+                </div>
+              )}
 
               {/* TWO SESSIONS WITH VISUAL TIMELINE BARS */}
               <div className="space-y-4 pt-1">
