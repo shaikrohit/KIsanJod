@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback } from "react";
 import { useLanguage } from "@/lib/i18n";
 import { to12Hour } from "@/lib/timeFormat";
 import { Eye, EyeOff } from "lucide-react";
-import { ConfirmationModal } from "@/components/ConfirmationModal";
 
 interface Stats {
   overview: {
