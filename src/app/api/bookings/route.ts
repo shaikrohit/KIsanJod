@@ -96,24 +96,13 @@ export async function POST(req: NextRequest) {
     }
 
     // Ensure slot capacity tracking record exists
-    let slot = await db.hourlySlotCapacity.findFirst({
-      where: { centerId, date, hourOfDay: startHour },
-    });
-
-    if (!slot) {
-      slot = await db.hourlySlotCapacity.create({
-        data: {
-    let slot = await db.hourlySlotCapacity.upsert({
+    const slot = await db.hourlySlotCapacity.upsert({
       where: {
         centerId_date_hourOfDay: {
           centerId,
           date,
           hourOfDay: startHour,
-          maxCapacity: 10,
-          bookedCount: 0,
         },
-      });
-    }
       },
       update: {},
       create: {
@@ -135,7 +124,6 @@ export async function POST(req: NextRequest) {
     const tokenNumber = `${prefix}-${String(seqNum).padStart(3, "0")}`;
 
     // Create booking
-    const bookingNumber = `BK-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
     const randomSuffix = Math.floor(1000 + Math.random() * 9000);
     const bookingNumber = `BK-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}-${randomSuffix}`;
 
@@ -222,9 +210,8 @@ export async function POST(req: NextRequest) {
         bufferMinutes: handling.bufferMinutes,
       },
     });
-  } catch (err) {
+  } catch (err: unknown) {
     console.error("Booking error:", err);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Server error" },
       { status: 500 }

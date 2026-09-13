@@ -61,14 +61,11 @@ function QueueContent() {
     pfmsRef?: string;
   } | null>(null);
 
-  const fetchLiveQueue = useCallback(async () => {
-    if (!centreId) return;
   const [activeCentreId, setActiveCentreId] = useState<string>(centreId || "center_lud_01");
 
   const fetchLiveQueue = useCallback(async (targetCentreId?: string) => {
     const cid = targetCentreId || activeCentreId || centreId || "center_lud_01";
     try {
-      const res = await fetch(`/api/queue/${centreId}`);
       const res = await fetch(`/api/queue/${cid}`);
       if (res.ok) {
         const data: QueueResponse = await res.json();
@@ -79,7 +76,6 @@ function QueueContent() {
     } finally {
       setLoading(false);
     }
-  }, [centreId]);
   }, [activeCentreId, centreId]);
 
   const fetchBookingDetails = useCallback(async () => {
@@ -126,7 +122,6 @@ function QueueContent() {
     } finally {
       setLoading(false);
     }
-  }, [bookingId, router]);
   }, [bookingId, router, activeCentreId, fetchLiveQueue]);
 
   // Zero-delay instant sync over SSE and BroadcastChannel
@@ -138,17 +133,12 @@ function QueueContent() {
   // Initial load and fast 1000ms backup heartbeat
   useEffect(() => {
     fetchBookingDetails();
-    if (centreId) {
-      fetchLiveQueue();
-    }
     fetchLiveQueue();
     const timer = setInterval(() => {
       fetchBookingDetails();
-      if (centreId) fetchLiveQueue();
       fetchLiveQueue();
     }, 1000);
     return () => clearInterval(timer);
-  }, [centreId, fetchLiveQueue, fetchBookingDetails]);
   }, [fetchLiveQueue, fetchBookingDetails]);
 
   // Voice readout function
@@ -215,7 +205,6 @@ function QueueContent() {
           </div>
           <button
             type="button"
-            onClick={fetchLiveQueue}
             onClick={() => fetchLiveQueue()}
             className="text-xs text-white/90 hover:text-white bg-white/10 hover:bg-white/25 border border-white/20 px-2.5 py-1 rounded-xl transition-all"
             title="Refresh Live Queue"

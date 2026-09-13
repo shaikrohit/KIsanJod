@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
 import { useEffect, useState, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLanguage, getCropName } from "@/lib/i18n";
@@ -272,8 +271,6 @@ function BookingContent() {
   const [capacityMode, setCapacityMode] = useState<"standard" | "alt" | "custom">("standard");
   const [activeWorkers, setActiveWorkers] = useState<number>(4);
 
-  const [centres, setCentres] = useState<Centre[]>([]);
-  const [selectedCentre, setSelectedCentre] = useState<Centre | null>(null);
   const [centres, setCentres] = useState<Centre[]>(FALLBACK_CENTRES);
   const [selectedCentre, setSelectedCentre] = useState<Centre | null>(FALLBACK_CENTRES[0]);
   const [loadingCentres, setLoadingCentres] = useState(false);
@@ -334,7 +331,6 @@ function BookingContent() {
     }
   }, [preSelectedCropKey, preSelectedPackageCount, preSelectedCategory]);
 
-  useEffect(() => {
   const fetchCentres = useCallback(() => {
     setLoadingCentres(true);
     fetch("/api/centres")
@@ -352,7 +348,6 @@ function BookingContent() {
           setSelectedCentre((prev) => prev || d.centres[0]);
         }
       })
-      .catch(console.error);
       .catch((err) => console.error("Error loading centres:", err))
       .finally(() => setLoadingCentres(false));
   }, [preSelectedCentreId]);
@@ -426,13 +421,11 @@ function BookingContent() {
             }
           }
         })
-        .catch(console.error);
         .catch(console.error)
         .finally(() => {
           setLoadingSlots(false);
         });
     }
-  }, [selectedCentre, selectedDate, packageCount, capacityKg, selectedCrop, activeWorkers]);
   }, [selectedCentre, selectedDate, selectedCrop, packageCount, capacityKg, activeWorkers]);
 
   // Calculate handling duration and net weight using authoritative research formula

@@ -89,9 +89,7 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const district = searchParams.get("district");
-
     const where: Record<string, unknown> = { isActive: true };
-    if (district) where.district = { contains: district };
     if (district) where.district = { contains: district, mode: "insensitive" };
 
     const centres = await db.procurementCenter.findMany({
@@ -99,9 +97,6 @@ export async function GET(req: NextRequest) {
       orderBy: { name: "asc" },
     });
 
-    return NextResponse.json({ centres });
-  } catch {
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
     if (centres && centres.length > 0) {
       return NextResponse.json({ centres });
     }
