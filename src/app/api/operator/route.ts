@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { agmarknetMock } from "@/lib/mocks/agmarknet";
 import { timeToMinutes, minutesToTimeStr } from "@/lib/timeFormat";
+import { notifySync } from "@/lib/syncBus";
 import crypto from "crypto";
 
 // POST /api/operator/advance - Call next token
@@ -37,13 +38,21 @@ export async function POST(req: NextRequest) {
         },
       });
 
+      notifySync({
+        type: "QUEUE_CALL",
+        centerId,
+        tokenNumber: updated.tokenNumber,
+        farmerId: updated.farmerId,
+        bookingId: updated.id,
+      });
+
       return NextResponse.json({ success: true, token: updated.tokenNumber, status: "CALLED" });
     }
 
     if (action === "standby") {
       if (!bookingId) return NextResponse.json({ error: "bookingId required" }, { status: 400 });
 
-      await db.booking.update({
+      const updated = await db.booking.update({
         where: { id: bookingId },
         data: {
           status: "STANDBY",
@@ -57,13 +66,21 @@ export async function POST(req: NextRequest) {
         },
       });
 
+      notifySync({
+        type: "QUEUE_STANDBY",
+        bookingId,
+        centerId: updated.centerId,
+        farmerId: updated.farmerId,
+        tokenNumber: updated.tokenNumber,
+      });
+
       return NextResponse.json({ success: true, status: "STANDBY" });
     }
 
     if (action === "cancel") {
       if (!bookingId) return NextResponse.json({ error: "bookingId required" }, { status: 400 });
 
-      await db.booking.update({
+      const updated = await db.booking.update({
         where: { id: bookingId },
         data: {
           status: "CANCELLED",
@@ -75,6 +92,14 @@ export async function POST(req: NextRequest) {
             },
           },
         },
+      });
+
+      notifySync({
+        type: "QUEUE_CANCEL",
+        bookingId,
+        centerId: updated.centerId,
+        farmerId: updated.farmerId,
+        tokenNumber: updated.tokenNumber,
       });
 
       return NextResponse.json({ success: true, status: "CANCELLED" });
@@ -144,6 +169,14 @@ export async function POST(req: NextRequest) {
           });
         }
       }
+
+      notifySync({
+        type: "QUEUE_COMPLETED",
+        bookingId,
+        centerId: booking.centerId,
+        farmerId: booking.farmerId,
+        tokenNumber: booking.tokenNumber,
+      });
 
       return NextResponse.json({ success: true, status: "COMPLETED" });
     }
@@ -230,6 +263,19 @@ export async function POST(req: NextRequest) {
             },
           },
         },
+      });
+
+      notifySync({
+        type: "WEIGHMENT_COMPLETED",
+        bookingId,
+        centerId: booking.centerId,
+        farmerId: booking.farmerId,
+        tokenNumber: booking.tokenNumber,
+        billNumber,
+        netWeightQtl,
+        mspRate: payout.mspRate,
+        netPayable: payout.netPayable,
+        pfmsRef,
       });
 
       return NextResponse.json({

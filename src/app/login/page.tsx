@@ -223,7 +223,7 @@ function LoginContent() {
               /* Step 1: Clean Farmer Header */
               <div className="flex flex-col gap-1 pb-5 mb-5 border-b border-gray-100">
                 <span className="text-xs font-black tracking-wider uppercase text-emerald-800 bg-emerald-50 border border-emerald-200/60 px-3 py-1 rounded-full w-fit">
-                  🌾 Mandi Farmer Portal
+                  🌾 Farmer Procurement Portal
                 </span>
                 <h2 className="text-2xl sm:text-3xl font-black text-gray-900 font-heading mt-1">
                   {t("farmerLogin")}
@@ -379,7 +379,7 @@ function LoginContent() {
                 }`}
               >
                 <Building2 size={15} className={role === "operator" ? "text-blue-600" : "text-gray-400"} />
-                <span>APMC Operator</span>
+                <span>Procurement Operator</span>
               </button>
               <button
                 type="button"
@@ -448,20 +448,78 @@ function LoginContent() {
                     />
                   </div>
 
-                  {/* 1-Click Demo Fill Chip */}
-                  <div className="pt-0.5">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEmpId("EMP-LUD-001");
-                        setPin("1234");
-                        setError("");
-                      }}
-                      className="w-full inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-extrabold bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition-all active:scale-98 shadow-2xs"
-                    >
-                      <Sparkles size={14} />
-                      <span>Quick Fill Demo Operator (EMP-LUD-001 / 1234)</span>
-                    </button>
+                  {/* 1-Click Demo Fill Chips for 4 Mandi Procurement Centers */}
+                  <div className="space-y-1.5 pt-0.5">
+                    <p className="text-[11px] font-bold text-gray-500 flex items-center gap-1">
+                      <Sparkles size={13} className="text-blue-600" />
+                      <span>Quick Select Demo Procurement Operator (PIN: 1234):</span>
+                    </p>
+                    <div className="grid grid-cols-2 gap-1.5 text-left">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEmpId("EMP-LUD-001");
+                          setPin("1234");
+                          setError("");
+                        }}
+                        className={`p-2 rounded-xl text-[11px] font-bold border transition-all text-left ${
+                          empId === "EMP-LUD-001"
+                            ? "bg-blue-100/80 text-blue-900 border-blue-400 font-black shadow-xs"
+                            : "bg-blue-50/50 text-blue-800 border-blue-200 hover:bg-blue-50"
+                        }`}
+                      >
+                        🌾 Ludhiana Mandi
+                        <span className="block text-[10px] text-gray-500 font-mono">EMP-LUD-001</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEmpId("EMP-GNT-001");
+                          setPin("1234");
+                          setError("");
+                        }}
+                        className={`p-2 rounded-xl text-[11px] font-bold border transition-all text-left ${
+                          empId === "EMP-GNT-001"
+                            ? "bg-blue-100/80 text-blue-900 border-blue-400 font-black shadow-xs"
+                            : "bg-blue-50/50 text-blue-800 border-blue-200 hover:bg-blue-50"
+                        }`}
+                      >
+                        🌶️ Guntur Yard
+                        <span className="block text-[10px] text-gray-500 font-mono">EMP-GNT-001</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEmpId("EMP-SEH-001");
+                          setPin("1234");
+                          setError("");
+                        }}
+                        className={`p-2 rounded-xl text-[11px] font-bold border transition-all text-left ${
+                          empId === "EMP-SEH-001"
+                            ? "bg-blue-100/80 text-blue-900 border-blue-400 font-black shadow-xs"
+                            : "bg-blue-50/50 text-blue-800 border-blue-200 hover:bg-blue-50"
+                        }`}
+                      >
+                        🌻 Sehore Mandi
+                        <span className="block text-[10px] text-gray-500 font-mono">EMP-SEH-001</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEmpId("EMP-NSK-001");
+                          setPin("1234");
+                          setError("");
+                        }}
+                        className={`p-2 rounded-xl text-[11px] font-bold border transition-all text-left ${
+                          empId === "EMP-NSK-001"
+                            ? "bg-blue-100/80 text-blue-900 border-blue-400 font-black shadow-xs"
+                            : "bg-blue-50/50 text-blue-800 border-blue-200 hover:bg-blue-50"
+                        }`}
+                      >
+                        🧅 Nashik Market
+                        <span className="block text-[10px] text-gray-500 font-mono">EMP-NSK-001</span>
+                      </button>
+                    </div>
                   </div>
 
                   <button
@@ -545,18 +603,19 @@ function LoginContent() {
         )}
       </div>
 
-      {/* Very bottom of the website: Faint discreet Staff Portal link (only on Step 1) */}
+      {/* Attached completely to the right bottom corner of the footer/screen (Step 1 only) */}
       {isFarmer && step === "aadhaar" && (
-        <div className="mt-8 text-center">
+        <div className="fixed bottom-3 right-4 z-40">
           <button
             type="button"
             onClick={() => {
               setRole("operator");
               setError("");
             }}
-            className="text-xs text-gray-400 hover:text-emerald-800 transition-colors py-1.5 px-3 rounded-xl hover:bg-black/5"
+            className="text-[11px] font-semibold text-gray-400/90 hover:text-emerald-950 bg-white/75 hover:bg-white backdrop-blur-xs border border-gray-200/80 shadow-2xs transition-all py-1.5 px-3 rounded-full flex items-center gap-1.5 group"
           >
-            Staff Portal →
+            <span>Staff Portal</span>
+            <span className="transition-transform group-hover:translate-x-0.5">→</span>
           </button>
         </div>
       )}

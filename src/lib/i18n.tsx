@@ -23,7 +23,7 @@ export const translations: Record<Locale, Record<string, string>> = {
 
     // Roles
     roleFarmer: "Farmer",
-    roleOperator: "Mandi Staff",
+    roleOperator: "Procurement Staff",
     roleAdmin: "DoCA Admin",
 
     // Auth
@@ -38,7 +38,7 @@ export const translations: Record<Locale, Record<string, string>> = {
     verifyOtp: "Verify & Continue",
     verifying: "Verifying...",
     changeAadhaar: "Change Aadhaar",
-    operatorLogin: "Mandi Operator Login",
+    operatorLogin: "Procurement Center Login",
     operatorSubtitle: "Weighbridge & procurement desk",
     employeeId: "Employee ID",
     employeePlaceholder: "e.g. EMP-LUD-001",
@@ -261,7 +261,7 @@ export const translations: Record<Locale, Record<string, string>> = {
 
     // Roles
     roleFarmer: "किसान",
-    roleOperator: "मंडी स्टाफ",
+    roleOperator: "खरीद केंद्र स्टाफ",
     roleAdmin: "उपभोक्ता मामले",
 
     // Auth
@@ -276,7 +276,7 @@ export const translations: Record<Locale, Record<string, string>> = {
     verifyOtp: "सत्यापित करें और आगे बढ़ें",
     verifying: "सत्यापन जारी है...",
     changeAadhaar: "आधार बदलें",
-    operatorLogin: "मंडी ऑपरेटर लॉगिन",
+    operatorLogin: "खरीद केंद्र ऑपरेटर लॉगिन",
     operatorSubtitle: "वेइब्रिज एवं खरीद डेस्क",
     employeeId: "कर्मचारी ID",
     employeePlaceholder: "उदा. EMP-LUD-001",
@@ -499,7 +499,7 @@ export const translations: Record<Locale, Record<string, string>> = {
 
     // Roles
     roleFarmer: "రైతు",
-    roleOperator: "మండీ సిబ్బంది",
+    roleOperator: "సేకరణ సిబ్బంది",
     roleAdmin: "అధికారి",
 
     // Auth
@@ -514,7 +514,7 @@ export const translations: Record<Locale, Record<string, string>> = {
     verifyOtp: "ధృవీకరించి కొనసాగండి",
     verifying: "ధృవీకరిస్తోంది...",
     changeAadhaar: "ఆధార్ మార్చండి",
-    operatorLogin: "మండీ ఆపరేటర్ లాగిన్",
+    operatorLogin: "సేకరణ కేంద్రం ఆపరేటర్ లాగిన్",
     operatorSubtitle: "తూకం వేదిక మరియు కొనుగోలు డెస్క్",
     employeeId: "ఉద్యోగి ID",
     employeePlaceholder: "ఉదా. EMP-LUD-001",

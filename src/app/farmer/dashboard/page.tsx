@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useLanguage } from "@/lib/i18n";
 import { to12Hour, formatApproxTimeRange12h } from "@/lib/timeFormat";
 import { ConfirmationModal } from "@/components/ConfirmationModal";
+import { useInstantSync } from "@/lib/useInstantSync";
 
 interface FarmerData {
   id: string;
@@ -43,6 +44,9 @@ interface BookingData {
   procurementBill?: {
     netAmountPayable: number;
     billNumber: string;
+    netWeightQtl?: number;
+    notifiedMspRate?: number;
+    qualityGrade?: string;
     dbtPayment?: { status: string; bankUtr: string | null; pfmsReferenceNumber: string };
   };
 }
@@ -54,7 +58,6 @@ export default function FarmerDashboard() {
   const [farmer, setFarmer] = useState<FarmerData | null>(null);
   const [bookings, setBookings] = useState<BookingData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [confirmCancelBookingId, setConfirmCancelBookingId] = useState<string | null>(null);
   const [confirmRescheduleBooking, setConfirmRescheduleBooking] = useState<BookingData | null>(null);
   const [liveQueue, setLiveQueue] = useState<{
@@ -76,6 +79,41 @@ export default function FarmerDashboard() {
     }>;
   } | null>(null);
 
+  const activeBooking = bookings.find((b) =>
+    ["WAITING", "CALLED", "AT_BAY", "STANDBY"].includes(b.status)
+  );
+
+  const fetchBookings = useCallback((targetFarmerId?: string) => {
+    const id = targetFarmerId || farmer?.id;
+    if (!id) return;
+    fetch(`/api/bookings?farmerId=${id}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.bookings) {
+          setBookings(d.bookings);
+        }
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [farmer?.id]);
+
+  const fetchQueue = useCallback(() => {
+    const centerId = activeBooking?.centerId || bookings[0]?.centerId;
+    if (!centerId) return;
+    fetch(`/api/queue/${centerId}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d && !d.error) setLiveQueue(d);
+      })
+      .catch(() => {});
+  }, [activeBooking?.centerId, bookings]);
+
+  // Zero-delay instant sync over SSE stream and BroadcastChannel
+  useInstantSync(() => {
+    fetchBookings();
+    fetchQueue();
+  });
+
   useEffect(() => {
     const stored = localStorage.getItem("kisanjod_farmer");
     if (!stored) {
@@ -84,15 +122,15 @@ export default function FarmerDashboard() {
     }
     const f = JSON.parse(stored);
     setFarmer(f);
+    fetchBookings(f.id);
 
-    fetch(`/api/bookings?farmerId=${f.id}`)
-      .then((r) => r.json())
-      .then((d) => {
-        setBookings(d.bookings || []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, [router]);
+    // Fast backup heartbeat (1000ms) ensuring zero-delay updates even on intermittent connections
+    const interval = setInterval(() => {
+      fetchBookings(f.id);
+      fetchQueue();
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [router, fetchBookings, fetchQueue]);
 
   const handleCancelBooking = async (bookingId: string) => {
     try {
@@ -114,28 +152,6 @@ export default function FarmerDashboard() {
       /* silent */
     }
   };
-
-  // Poll live queue telemetry if farmer has an active booking
-  const activeBooking = bookings.find((b) =>
-    ["WAITING", "CALLED", "AT_BAY", "STANDBY"].includes(b.status)
-  );
-
-  useEffect(() => {
-    if (!activeBooking?.centerId) return;
-
-    const fetchQueue = () => {
-      fetch(`/api/queue/${activeBooking.centerId}`)
-        .then((r) => r.json())
-        .then((d) => {
-          if (d && !d.error) setLiveQueue(d);
-        })
-        .catch(() => {});
-    };
-
-    fetchQueue();
-    const interval = setInterval(fetchQueue, 4000);
-    return () => clearInterval(interval);
-  }, [activeBooking?.centerId]);
 
   if (!farmer) return null;
 
@@ -229,6 +245,52 @@ export default function FarmerDashboard() {
           </Link>
         </div>
       </div>
+
+      {/* 2b. Live Real-Time Operator Gate Call Banner */}
+      {activeBooking && (activeBooking.status === "CALLED" || activeBooking.status === "AT_BAY") && (
+        <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 text-white p-4 sm:p-5 rounded-3xl shadow-xl border-2 border-emerald-300 flex items-center justify-between gap-3 animate-pulse">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl sm:text-4xl">📢</span>
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-wider bg-white text-emerald-900 px-2.5 py-0.5 rounded-full">
+                GATE CALL • WEIGHBRIDGE DESK READY
+              </span>
+              <p className="text-base sm:text-lg font-black mt-1 leading-tight">
+                Token {activeBooking.tokenNumber}: Proceed to Bay {activeBooking.bayAssigned || 1}!
+              </p>
+              <p className="text-xs text-emerald-100 font-medium">
+                Operator has called your vehicle for weighment and digital grading.
+              </p>
+            </div>
+          </div>
+          <Link
+            href={`/farmer/queue?bookingId=${activeBooking.id}&centreId=${activeBooking.centerId}`}
+            className="px-4 py-2.5 bg-white text-emerald-900 hover:bg-emerald-50 rounded-xl text-xs font-black shrink-0 shadow-md transition-all active:scale-95"
+          >
+            Open Gate Pass →
+          </Link>
+        </div>
+      )}
+
+      {/* 2c. Live Real-Time Standby Banner */}
+      {activeBooking && activeBooking.status === "STANDBY" && (
+        <div className="bg-gradient-to-r from-amber-600 to-orange-600 text-white p-4 rounded-3xl shadow-xl border-2 border-amber-300 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl">⏸️</span>
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-wider bg-white text-amber-900 px-2.5 py-0.5 rounded-full">
+                TOKEN ON STANDBY
+              </span>
+              <p className="text-sm sm:text-base font-black mt-0.5">
+                Token {activeBooking.tokenNumber} is temporarily on standby
+              </p>
+              <p className="text-xs text-amber-100 font-medium">
+                Please report to the Mandi Operator Desk at {activeBooking.center.name}.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 3. Section: Your Next Visit / Active Booking or Empty State */}
       <div className="space-y-3">
@@ -441,7 +503,67 @@ export default function FarmerDashboard() {
               </div>
             </div>
           );
-        })() : (
+        })() : completedBookings[0]?.procurementBill ? (
+          /* Real-time Celebratory State When Load Has Been Weighed & Completed */
+          <div className="space-y-3.5">
+            <div className="rounded-3xl bg-gradient-to-r from-[#0a382b] via-[#0d4f3c] to-[#082e23] text-white p-6 sm:p-7 shadow-2xl border border-emerald-400/30 space-y-4 relative overflow-hidden">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/15 pb-3">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-400/20 text-emerald-300 px-3 py-1 text-xs font-black tracking-wider uppercase border border-emerald-400/30 shadow-xs">
+                  <span>✅</span> Procurement Weighment Completed
+                </span>
+                <span className="text-xs text-amber-300 font-mono font-black tracking-wide bg-black/20 px-2.5 py-1 rounded-lg border border-white/10">
+                  {completedBookings[0].procurementBill.billNumber}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="bg-white/10 rounded-2xl p-4 border border-white/10 space-y-0.5">
+                  <p className="text-xs text-emerald-200 font-bold uppercase tracking-wider">Net Load Weighed</p>
+                  <p className="text-2xl font-black text-white font-heading">
+                    {completedBookings[0].procurementBill.netWeightQtl || completedBookings[0].estimatedQuantityQtl} Quintals
+                  </p>
+                  <p className="text-xs text-emerald-300 font-semibold">{completedBookings[0].cropName} • FAQ Standard Grade</p>
+                </div>
+
+                <div className="bg-white/10 rounded-2xl p-4 border border-white/10 space-y-0.5">
+                  <p className="text-xs text-amber-300 font-bold uppercase tracking-wider">MSP Settlement Payable</p>
+                  <p className="text-2xl font-black text-amber-300 font-heading">
+                    ₹{completedBookings[0].procurementBill.netAmountPayable.toLocaleString("en-IN")}
+                  </p>
+                  <p className="text-xs text-amber-200/90 font-semibold">
+                    ₹{completedBookings[0].procurementBill.notifiedMspRate || 2275}/Qtl Official MSP
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-2 flex flex-wrap items-center justify-between gap-3">
+                <p className="text-xs text-emerald-200/90 font-mono truncate max-w-xs">
+                  PFMS Ref: {completedBookings[0].procurementBill.dbtPayment?.pfmsReferenceNumber || "Direct Benefit Transfer Processing"}
+                </p>
+                <Link
+                  href="/farmer/payments"
+                  className="px-5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 active:scale-95 text-zinc-950 font-black text-xs shadow-md transition-all inline-flex items-center gap-1.5"
+                >
+                  <span>View Digital J-Form & Payment</span>
+                  <span>→</span>
+                </Link>
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-white/90 p-4 border border-emerald-100 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-black text-gray-900">Need to deliver another produce load?</p>
+                <p className="text-[11px] text-gray-500 font-semibold">Book your guaranteed mandi arrival slot with dynamic queue pass.</p>
+              </div>
+              <Link
+                href="/farmer/book"
+                className="px-4 py-2 rounded-xl bg-[#0d4f3c] hover:bg-[#12684f] text-white font-black text-xs shadow-xs transition-all active:scale-95"
+              >
+                + Book Next Slot
+              </Link>
+            </div>
+          </div>
+        ) : (
           /* Clean Empty State when No Booking is Active */
           <div className="rounded-3xl bg-white/95 backdrop-blur-md border border-emerald-200/80 shadow-md p-6 sm:p-8 text-center space-y-4">
             <div className="h-14 w-14 mx-auto rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-3xl shadow-xs">
@@ -587,28 +709,6 @@ export default function FarmerDashboard() {
       </nav>
 
       {/* Personalized Confirmation Modals */}
-      {showLogoutConfirm && (
-        <ConfirmationModal
-          isOpen={showLogoutConfirm}
-          title="Sign Out from KisanJod?"
-          message={`Are you sure you want to sign out, ${farmer?.fullName || "Farmer"}? You will need to enter your registered Aadhaar to sign back in.`}
-          confirmLabel="Yes, Sign Out"
-          cancelLabel="Stay Logged In"
-          variant="danger"
-          onConfirm={() => {
-            setShowLogoutConfirm(false);
-            try {
-              localStorage.removeItem("kisanjod_farmer");
-              localStorage.removeItem("kisanjod_operator");
-              localStorage.removeItem("kisanjod_admin");
-              sessionStorage.removeItem("kisanjod_admin");
-            } catch {}
-            window.dispatchEvent(new Event("kisanjod_auth_change"));
-            router.push("/login");
-          }}
-          onCancel={() => setShowLogoutConfirm(false)}
-        />
-      )}
 
       {confirmCancelBookingId && (
         <ConfirmationModal

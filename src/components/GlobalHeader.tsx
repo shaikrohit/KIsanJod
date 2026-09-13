@@ -331,7 +331,7 @@ export default function GlobalHeader() {
                 </span>
                 <span className="text-[10px] sm:text-[11px] font-extrabold text-emerald-700 leading-tight tracking-wide">
                   {session.role === "operator"
-                    ? "Mandi Operator"
+                    ? "Procurement Operator"
                     : session.role === "admin"
                     ? "Oversight Portal"
                     : "KisanJod"}
@@ -432,7 +432,7 @@ export default function GlobalHeader() {
                     </h2>
                     {session?.role === "operator" ? (
                       <p className="text-[11px] font-extrabold text-blue-700 uppercase tracking-wider mt-0.5">
-                        APMC Mandi Operator
+                        Procurement Operator
                       </p>
                     ) : session?.role === "admin" ? (
                       <p className="text-[11px] font-extrabold text-purple-700 uppercase tracking-wider mt-0.5">

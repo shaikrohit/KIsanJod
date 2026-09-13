@@ -5,6 +5,7 @@ import { useLanguage } from "@/lib/i18n";
 import { to12Hour, formatApproxTimeRange12h } from "@/lib/timeFormat";
 import { Eye, EyeOff } from "lucide-react";
 import { ConfirmationModal } from "@/components/ConfirmationModal";
+import { useInstantSync } from "@/lib/useInstantSync";
 
 interface QueueItem {
   id: string;
@@ -41,7 +42,7 @@ export default function OperatorPage() {
   const [empId, setEmpId] = useState("EMP-LUD-001");
   const [pin, setPin] = useState("1234");
   const [showPin, setShowPin] = useState(false);
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [allCentres, setAllCentres] = useState<Array<{ id: string; name: string; centerCode?: string; district: string }>>([]);
   const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
   const [confirmStandbyId, setConfirmStandbyId] = useState<string | null>(null);
   const [activeWorkers, setActiveWorkers] = useState<number>(4);
@@ -98,6 +99,9 @@ export default function OperatorPage() {
     try {
       const res = await fetch("/api/centres");
       const data = await res.json();
+      if (data.centres && Array.isArray(data.centres)) {
+        setAllCentres(data.centres);
+      }
       const myCentre = data.centres?.find((c: { id: string; activeWorkers?: number; morningSessionStart?: string; morningSessionEnd?: string; afternoonSessionStart?: string; afternoonSessionEnd?: string }) => c.id === operator.center.id);
       if (myCentre) {
         if (myCentre.activeWorkers) setActiveWorkers(myCentre.activeWorkers);
@@ -147,11 +151,19 @@ export default function OperatorPage() {
     } catch {}
   }, []);
 
+  // Zero-delay instant sync over SSE stream and BroadcastChannel
+  useInstantSync(() => {
+    if (loggedIn && operator) {
+      fetchQueue();
+    }
+  });
+
   useEffect(() => {
     if (loggedIn && operator) {
       fetchQueue();
       fetchCentreSettings();
-      const interval = setInterval(fetchQueue, 4000);
+      // Fast 1000ms backup heartbeat
+      const interval = setInterval(fetchQueue, 1000);
       return () => clearInterval(interval);
     }
   }, [loggedIn, operator, fetchQueue, fetchCentreSettings]);
@@ -187,6 +199,37 @@ export default function OperatorPage() {
     setLoading(false);
   };
 
+  const broadcastSync = () => {
+    try {
+      window.dispatchEvent(new Event("kisanjod_sync"));
+      localStorage.setItem("kisanjod_sync_ping", String(Date.now()));
+      if (typeof window !== "undefined" && "BroadcastChannel" in window) {
+        const bc = new BroadcastChannel("kisanjod_sync");
+        bc.postMessage({ type: "SYNC", timestamp: Date.now() });
+        bc.close();
+      }
+    } catch {}
+  };
+
+  const handleSwitchCenter = (newCenterId: string) => {
+    const found = allCentres.find((c) => c.id === newCenterId);
+    if (found && operator) {
+      const updatedOp: OperatorData = {
+        ...operator,
+        center: {
+          id: found.id,
+          name: found.name,
+          centerCode: (found as any).centerCode || "",
+          district: found.district || "",
+        },
+      };
+      setOperator(updatedOp);
+      localStorage.setItem("kisanjod_operator", JSON.stringify(updatedOp));
+      window.dispatchEvent(new Event("kisanjod_auth_change"));
+      broadcastSync();
+    }
+  };
+
   const callNext = async () => {
     if (!operator) return;
     await fetch("/api/operator", {
@@ -195,6 +238,7 @@ export default function OperatorPage() {
       body: JSON.stringify({ action: "call_next", centerId: operator.center.id }),
     });
     fetchQueue();
+    broadcastSync();
   };
 
   const putStandby = async (bookingId: string) => {
@@ -204,6 +248,7 @@ export default function OperatorPage() {
       body: JSON.stringify({ action: "standby", bookingId }),
     });
     fetchQueue();
+    broadcastSync();
   };
 
   const cancelToken = async (bookingId: string) => {
@@ -213,6 +258,7 @@ export default function OperatorPage() {
       body: JSON.stringify({ action: "cancel", bookingId }),
     });
     fetchQueue();
+    broadcastSync();
   };
 
   const completeToken = async (bookingId: string) => {
@@ -222,6 +268,7 @@ export default function OperatorPage() {
       body: JSON.stringify({ action: "complete", bookingId }),
     });
     fetchQueue();
+    broadcastSync();
   };
 
   const submitProcessing = async (e?: React.FormEvent) => {
@@ -250,6 +297,7 @@ export default function OperatorPage() {
         setBillResult(data.bill);
         setProcessing(null);
         fetchQueue();
+        broadcastSync();
       } else {
         alert(data.error || "Processing failed");
       }
@@ -508,25 +556,44 @@ export default function OperatorPage() {
   // Queue Dashboard
   return (
     <div className="space-y-4 max-w-2xl mx-auto pb-12">
-      {/* Operator Header */}
-      <div className="glass-card p-4 flex items-center justify-between">
-        <div>
-          <span className="pill green mb-1">Mandi Staff</span>
-          <h2 className="text-lg font-bold text-gray-900 font-heading">
-            {operator?.center.name}
-          </h2>
-          <p className="text-xs text-gray-500">
-            {operator?.fullName} ({operator?.employeeId})
-          </p>
+      {/* Active Procurement Center Desk & Switcher (No external Logout button) */}
+      <div className="glass-card p-4 flex flex-wrap items-center justify-between gap-3 border-l-4 border-emerald-600 bg-white/95 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-800 text-2xl font-bold shadow-2xs">
+            🏢
+          </div>
+          <div>
+            <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200/60">
+              Procurement Center Desk
+            </span>
+            <h2 className="text-base sm:text-lg font-black text-gray-900 font-heading leading-tight mt-0.5">
+              {operator?.center.name}
+            </h2>
+            <p className="text-xs text-gray-500 font-semibold">
+              Operator Station: {operator?.fullName} ({operator?.employeeId})
+            </p>
+          </div>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setShowLogoutConfirm(true)}
-          className="text-xs text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-xl border border-red-200 font-semibold"
-        >
-          {t("logout")}
-        </button>
+        {allCentres.length > 0 && (
+          <div className="flex items-center gap-2">
+            <label htmlFor="center-switcher" className="text-xs font-bold text-gray-500 hidden sm:inline">
+              Switch Center:
+            </label>
+            <select
+              id="center-switcher"
+              value={operator?.center.id}
+              onChange={(e) => handleSwitchCenter(e.target.value)}
+              className="text-xs font-extrabold bg-emerald-50 border border-emerald-300 text-emerald-950 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer shadow-2xs"
+            >
+              {allCentres.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} ({c.district})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Mandi Operating Sessions Configuration Card */}
@@ -792,24 +859,6 @@ export default function OperatorPage() {
       </div>
 
       {/* Personalized Confirmation Modals */}
-      {showLogoutConfirm && (
-        <ConfirmationModal
-          isOpen={showLogoutConfirm}
-          title="Sign Out from Mandi Terminal?"
-          message="Are you sure you want to log out of the operator portal? Your current station session will be ended."
-          confirmLabel="Yes, Sign Out"
-          cancelLabel="Stay Logged In"
-          variant="danger"
-          onConfirm={() => {
-            setShowLogoutConfirm(false);
-            localStorage.removeItem("kisanjod_operator");
-            window.dispatchEvent(new Event("kisanjod_auth_change"));
-            setLoggedIn(false);
-            setOperator(null);
-          }}
-          onCancel={() => setShowLogoutConfirm(false)}
-        />
-      )}
 
       {confirmCancelId && (
         <ConfirmationModal

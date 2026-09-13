@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useLanguage } from "@/lib/i18n";
+import { useInstantSync } from "@/lib/useInstantSync";
 
 interface BookingData {
   id: string;
@@ -36,23 +37,38 @@ export default function PaymentsPage() {
   const [bookings, setBookings] = useState<BookingData[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const fetchPayments = useCallback(() => {
+    try {
+      const stored = localStorage.getItem("kisanjod_farmer");
+      if (!stored) return;
+      const f = JSON.parse(stored);
+      fetch(`/api/bookings?farmerId=${f.id}`)
+        .then((r) => r.json())
+        .then((d) => {
+          setBookings(
+            (d.bookings || []).filter((b: BookingData) => b.procurementBill)
+          );
+          setLoading(false);
+        })
+        .catch(() => setLoading(false));
+    } catch {}
+  }, []);
+
+  // Zero-delay instant sync via SSE stream and BroadcastChannel
+  useInstantSync(fetchPayments);
+
   useEffect(() => {
     const stored = localStorage.getItem("kisanjod_farmer");
     if (!stored) {
       router.push("/login");
       return;
     }
-    const f = JSON.parse(stored);
-    fetch(`/api/bookings?farmerId=${f.id}`)
-      .then((r) => r.json())
-      .then((d) => {
-        setBookings(
-          (d.bookings || []).filter((b: BookingData) => b.procurementBill)
-        );
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, [router]);
+    fetchPayments();
+
+    // Fast 1000ms backup heartbeat
+    const interval = setInterval(fetchPayments, 1000);
+    return () => clearInterval(interval);
+  }, [router, fetchPayments]);
 
   if (loading) {
     return (

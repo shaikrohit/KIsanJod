@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useLanguage } from "@/lib/i18n";
 import { to12Hour, formatApproxTimeRange12h } from "@/lib/timeFormat";
 import { ConfirmationModal } from "@/components/ConfirmationModal";
+import { useInstantSync } from "@/lib/useInstantSync";
 
 interface QueueResponse {
   centreId: string;
@@ -52,6 +53,13 @@ function QueueContent() {
   const [myStatus, setMyStatus] = useState<string>("WAITING");
   const [scheduledSlot, setScheduledSlot] = useState<string>("");
   const [cropName, setCropName] = useState<string>("");
+  const [completedBill, setCompletedBill] = useState<{
+    billNumber: string;
+    netWeightQtl: number;
+    mspRate: number;
+    netPayable: number;
+    pfmsRef?: string;
+  } | null>(null);
 
   const fetchLiveQueue = useCallback(async () => {
     if (!centreId) return;
@@ -68,44 +76,64 @@ function QueueContent() {
     }
   }, [centreId]);
 
-  // Initial lookup of farmer's booking
-  useEffect(() => {
-    const stored = localStorage.getItem("kisanjod_farmer");
-    if (!stored) {
-      router.push("/login");
-      return;
-    }
-    const farmer = JSON.parse(stored);
+  const fetchBookingDetails = useCallback(async () => {
+    try {
+      const stored = localStorage.getItem("kisanjod_farmer");
+      if (!stored) {
+        router.push("/login");
+        return;
+      }
+      const farmer = JSON.parse(stored);
+      const res = await fetch(`/api/bookings?farmerId=${farmer.id}`);
+      if (!res.ok) return;
+      const d = await res.json();
+      const allBookings = d.bookings || [];
+      const matching = bookingId
+        ? allBookings.find((b: { id: string }) => b.id === bookingId)
+        : allBookings.find((b: { status: string }) =>
+            ["WAITING", "CALLED", "AT_BAY", "STANDBY"].includes(b.status)
+          ) || allBookings[0];
 
-    fetch(`/api/bookings?farmerId=${farmer.id}`)
-      .then((r) => r.json())
-      .then((d) => {
-        const allBookings = d.bookings || [];
-        const matching = bookingId
-          ? allBookings.find((b: { id: string }) => b.id === bookingId)
-          : allBookings.find((b: { status: string }) =>
-              ["WAITING", "CALLED", "AT_BAY", "STANDBY"].includes(b.status)
-            );
-
-        if (matching) {
-          setMyTokenNumber(matching.tokenNumber);
-          setMyStatus(matching.status);
-          setScheduledSlot(
-            formatApproxTimeRange12h(matching.scheduledSlotStart, matching.scheduledSlotEnd)
-          );
-          setCropName(matching.cropName);
+      if (matching) {
+        setMyTokenNumber(matching.tokenNumber);
+        setMyStatus(matching.status);
+        setScheduledSlot(
+          formatApproxTimeRange12h(matching.scheduledSlotStart, matching.scheduledSlotEnd)
+        );
+        setCropName(matching.cropName);
+        if (matching.procurementBill) {
+          setCompletedBill({
+            billNumber: matching.procurementBill.billNumber,
+            netWeightQtl: matching.procurementBill.netWeightQtl || matching.estimatedQuantityQtl,
+            mspRate: matching.procurementBill.notifiedMspRate || 2275,
+            netPayable: matching.procurementBill.netAmountPayable,
+            pfmsRef: matching.procurementBill.dbtPayment?.pfmsReferenceNumber,
+          });
         }
-      })
-      .catch(console.error);
+      }
+    } catch (err) {
+      console.error("Error fetching booking details:", err);
+    }
   }, [bookingId, router]);
 
-  // Polling queue data every 8 seconds with live pulse indicator
-  useEffect(() => {
-    if (!centreId) return;
+  // Zero-delay instant sync over SSE and BroadcastChannel
+  useInstantSync(() => {
     fetchLiveQueue();
-    const timer = setInterval(fetchLiveQueue, 8000);
+    fetchBookingDetails();
+  });
+
+  // Initial load and fast 1000ms backup heartbeat
+  useEffect(() => {
+    fetchBookingDetails();
+    if (centreId) {
+      fetchLiveQueue();
+    }
+    const timer = setInterval(() => {
+      fetchBookingDetails();
+      if (centreId) fetchLiveQueue();
+    }, 1000);
     return () => clearInterval(timer);
-  }, [centreId, fetchLiveQueue]);
+  }, [centreId, fetchLiveQueue, fetchBookingDetails]);
 
   // Voice readout function
   const speakStatus = (text: string) => {
@@ -253,6 +281,57 @@ function QueueContent() {
           <p className="text-2xl mb-1">⏸️</p>
           <h3 className="text-lg font-black font-heading">{t("standbyTitle")}</h3>
           <p className="text-xs text-amber-100 mt-1">{t("standbyDesc")}</p>
+        </div>
+      )}
+
+      {/* 0. Real-time Weighment Completed & J-Form Generated Alert */}
+      {(myStatus === "COMPLETED" || completedBill) && (
+        <div className="bg-gradient-to-r from-emerald-800 via-teal-800 to-emerald-900 text-white rounded-3xl p-6 shadow-2xl text-center border-2 border-emerald-400 space-y-4 animate-subtle-pulse">
+          <div className="text-4xl">🎉</div>
+          <div>
+            <span className="text-[10px] font-black uppercase tracking-wider bg-white text-emerald-950 px-3 py-1 rounded-full">
+              WEIGHMENT COMPLETED & J-FORM GENERATED
+            </span>
+            <h3 className="text-xl sm:text-2xl font-black font-heading mt-2">
+              Procurement Successfully Finalized!
+            </h3>
+            <p className="text-xs text-emerald-200 mt-1">
+              Token {myTokenNumber} weighbridge verification has been submitted by the Mandi operator.
+            </p>
+          </div>
+
+          {completedBill && (
+            <div className="bg-black/30 rounded-2xl p-4 text-xs text-left border border-white/10 space-y-1.5">
+              <div className="flex justify-between">
+                <span className="text-gray-300 font-semibold">Bill Number:</span>
+                <span className="font-mono font-bold text-amber-300">{completedBill.billNumber}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-300 font-semibold">Net Weight Verified:</span>
+                <span className="font-bold text-white">{completedBill.netWeightQtl} Quintals</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-300 font-semibold">Total MSP Payable:</span>
+                <span className="font-bold text-amber-300 font-heading text-sm">
+                  ₹{completedBill.netPayable.toLocaleString("en-IN")}
+                </span>
+              </div>
+              {completedBill.pfmsRef && (
+                <div className="flex justify-between pt-1 border-t border-white/10 text-[11px]">
+                  <span className="text-gray-400">PFMS Ref:</span>
+                  <span className="font-mono text-emerald-300 truncate max-w-[200px]">{completedBill.pfmsRef}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          <Link
+            href="/farmer/payments"
+            className="btn-touch w-full py-3.5 bg-amber-400 hover:bg-amber-300 text-zinc-950 font-black text-xs rounded-xl shadow-lg transition-all inline-flex items-center justify-center gap-2"
+          >
+            <span>View Digital J-Form & DBT Payment Status</span>
+            <span>→</span>
+          </Link>
         </div>
       )}
 

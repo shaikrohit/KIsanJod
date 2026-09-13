@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { CROP_CATALOG } from "@/lib/mocks/agmarknet";
 import { calculateHandlingDuration, addMinutesToTimeString } from "@/lib/handlingDuration";
 import { timeToMinutes, minutesToTimeStr } from "@/lib/timeFormat";
+import { notifySync } from "@/lib/syncBus";
 
 export async function POST(req: NextRequest) {
   try {
@@ -177,6 +178,15 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    notifySync({
+      type: "BOOKING_CREATED",
+      centerId: booking.centerId,
+      farmerId: booking.farmerId,
+      bookingId: booking.id,
+      tokenNumber: booking.tokenNumber,
+      bookedDate: booking.bookedDate,
+    });
+
     return NextResponse.json({
       success: true,
       booking: {
@@ -306,6 +316,14 @@ export async function PATCH(req: NextRequest) {
           });
         }
       }
+
+      notifySync({
+        type: "BOOKING_CANCELLED",
+        centerId: booking.centerId,
+        farmerId: booking.farmerId,
+        bookingId: booking.id,
+        tokenNumber: booking.tokenNumber,
+      });
 
       return NextResponse.json({
         success: true,

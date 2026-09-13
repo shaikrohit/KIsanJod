@@ -47,7 +47,6 @@ export default function AdminDashboard() {
   const [adminUser, setAdminUser] = useState("admin");
   const [adminPass, setAdminPass] = useState("admin123");
   const [showPassword, setShowPassword] = useState(false);
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -250,25 +249,19 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-5 max-w-4xl mx-auto pb-12">
-      {/* Header */}
-      <div className="glass-card p-4 flex items-center justify-between">
+      {/* Executive Telemetry Header (No external logout button) */}
+      <div className="glass-card p-4 flex items-center justify-between border-l-4 border-purple-600">
         <div>
-          <span className="pill green mb-1">DoCA Executive</span>
-          <h2 className="text-lg font-bold text-gray-900 font-heading">
+          <span className="text-[10px] font-black uppercase tracking-wider text-purple-800 bg-purple-50 px-2.5 py-0.5 rounded-full border border-purple-200/60">
+            DoCA National Dashboard
+          </span>
+          <h2 className="text-lg font-bold text-gray-900 font-heading mt-1">
             Department of Consumer Affairs Telemetry
           </h2>
           <p className="text-xs text-gray-500">
             Real-time buffer stocking & MSP procurement analytics
           </p>
         </div>
-
-        <button
-          type="button"
-          onClick={() => setShowLogoutConfirm(true)}
-          className="text-xs text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-xl border border-red-200 font-semibold"
-        >
-          {t("logout")}
-        </button>
       </div>
 
       {/* KPI Cards */}
@@ -513,25 +506,6 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Confirmation Modal for Admin Logout */}
-      <ConfirmationModal
-        isOpen={showLogoutConfirm}
-        title="Confirm Executive Logout"
-        description="Are you sure you want to log out of the DoCA National Telemetry Portal?"
-        consequence="You will need to enter administrator credentials to access national procurement analytics again."
-        confirmText="Yes, Log Out"
-        cancelText="Stay Logged In"
-        variant="warning"
-        voiceText="Are you sure you want to log out of the DoCA Admin portal?"
-        onConfirm={() => {
-          setShowLogoutConfirm(false);
-          sessionStorage.removeItem("kisanjod_admin");
-          localStorage.removeItem("kisanjod_admin");
-          window.dispatchEvent(new Event("kisanjod_auth_change"));
-          setLoggedIn(false);
-        }}
-        onCancel={() => setShowLogoutConfirm(false)}
-      />
     </div>
   );
 }
