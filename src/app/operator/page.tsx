@@ -127,7 +127,6 @@ export default function OperatorPage() {
       });
       const data = await res.json();
       if (data.success) {
-        setSessionSuccessMsg("Operating hours updated successfully!");
         setSessionSuccessMsg("Operating hours and palledar gang updated successfully!");
         setTimeout(() => setSessionSuccessMsg(""), 3500);
         setIsEditingSessions(false);

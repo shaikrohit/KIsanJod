@@ -324,13 +324,17 @@ export default function GlobalHeader() {
               className="group flex items-center gap-2 sm:gap-2.5 rounded-2xl border border-emerald-200/80 bg-white/90 p-1 sm:p-1.5 pl-2.5 sm:pl-3 pr-1 sm:pr-1.5 shadow-2xs transition-all hover:bg-emerald-50/70 hover:border-emerald-300 hover:shadow-sm active:scale-[0.98] text-right"
               aria-label="Open Farmer Profile and Menu"
             >
-              {/* 2-line Label: Farmer Name (bold, larger) on top, KisanJod (smaller) below */}
+              {/* 2-line Label: Name on top, Role or Platform below */}
               <div className="flex flex-col min-w-0 items-end text-right">
                 <span className="text-xs sm:text-sm font-black text-[#17382d] leading-tight truncate max-w-[110px] sm:max-w-[170px]">
-                  {session.name}
+                  {session.role === "admin" ? "DoCA Admin" : session.name}
                 </span>
                 <span className="text-[10px] sm:text-[11px] font-extrabold text-emerald-700 leading-tight tracking-wide">
-                  KisanJod
+                  {session.role === "operator"
+                    ? "Mandi Operator"
+                    : session.role === "admin"
+                    ? "Oversight Portal"
+                    : "KisanJod"}
                 </span>
               </div>
 
@@ -522,6 +526,70 @@ export default function GlobalHeader() {
                     className="flex items-center justify-center gap-1.5 p-3 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 transition-colors shadow-2xs"
                   >
                     🌾 Book Slot
+                  </Link>
+                </div>
+              )}
+
+              {/* Operator Profile Card & Action */}
+              {session?.role === "operator" && (
+                <div className="rounded-2xl border border-blue-100 bg-blue-50/50 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-blue-700">
+                      APMC Gate Operator
+                    </span>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-extrabold text-blue-800">
+                      <ShieldCheck size={12} />
+                      Duty Active
+                    </span>
+                  </div>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex items-center justify-between py-1 border-b border-blue-200/60">
+                      <span className="text-gray-500 font-semibold">Operator</span>
+                      <strong className="text-gray-900 font-bold">{session.name}</strong>
+                    </div>
+                    <div className="flex items-center justify-between py-1 border-b border-blue-200/60">
+                      <span className="text-gray-500 font-semibold">Center ID</span>
+                      <span className="font-mono font-bold text-gray-800">{session.centerId || "center_gnt_01"}</span>
+                    </div>
+                  </div>
+                  <Link
+                    href="/operator"
+                    onClick={() => setProfileDrawerOpen(false)}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-xs transition-colors"
+                  >
+                    <span>⚖️ Open Weighing Bay Console</span>
+                  </Link>
+                </div>
+              )}
+
+              {/* Admin Profile Card & Action */}
+              {session?.role === "admin" && (
+                <div className="rounded-2xl border border-purple-100 bg-purple-50/50 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-purple-700">
+                      DoCA Administration
+                    </span>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-extrabold text-purple-800">
+                      <ShieldCheck size={12} />
+                      National Access
+                    </span>
+                  </div>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex items-center justify-between py-1 border-b border-purple-200/60">
+                      <span className="text-gray-500 font-semibold">Department</span>
+                      <strong className="text-gray-900 font-bold">Dept of Consumer Affairs</strong>
+                    </div>
+                    <div className="flex items-center justify-between py-1 border-b border-purple-200/60">
+                      <span className="text-gray-500 font-semibold">Scope</span>
+                      <span className="font-bold text-gray-800">All India APMC Network</span>
+                    </div>
+                  </div>
+                  <Link
+                    href="/admin"
+                    onClick={() => setProfileDrawerOpen(false)}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-extrabold text-xs shadow-xs transition-colors"
+                  >
+                    <span>📊 Open National Analytics</span>
                   </Link>
                 </div>
               )}
