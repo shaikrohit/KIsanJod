@@ -354,21 +354,13 @@ export default function GlobalHeader() {
               </div>
             </button>
           ) : (
-            /* When not logged in: Brand badge + portal link */
-            <div className="flex items-center gap-2">
-              <Link href="/" className="flex items-center gap-2 font-heading font-black text-sm text-[#17382d]">
-                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#f7ead0] border border-[#d8b56a] text-[#8a5a16]">
-                  <Sprout size={16} />
-                </div>
-                <span>KisanJod</span>
-              </Link>
-              <Link
-                href="/login"
-                className="rounded-full bg-[#176b4b] px-3.5 py-1.5 text-xs font-extrabold text-white shadow-sm hover:bg-[#12583e] transition-colors"
-              >
-                {t("login")}
-              </Link>
-            </div>
+            /* When not logged in: Brand badge only */
+            <Link href="/" className="flex items-center gap-2 font-heading font-black text-sm text-[#17382d] hover:opacity-90 transition-opacity">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#f7ead0] border border-[#d8b56a] text-[#8a5a16]">
+                <Sprout size={16} />
+              </div>
+              <span>KisanJod</span>
+            </Link>
           )}
         </div>
       </div>
@@ -429,16 +421,24 @@ export default function GlobalHeader() {
                       )}
                     </div>
                   <div>
-                    <h2 className="text-base font-black text-gray-900 leading-tight">
-                      {session?.name}
+                    <h2 className="text-base font-black text-gray-900 leading-tight flex items-center gap-2">
+                      <span>{session?.name}</span>
+                      {session?.role === "farmer" && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-extrabold text-emerald-800">
+                          <ShieldCheck size={11} />
+                          Verified
+                        </span>
+                      )}
                     </h2>
-                    <p className="text-[11px] font-extrabold text-emerald-700 uppercase tracking-wider mt-0.5">
-                      {session?.role === "farmer"
-                        ? "Verified Mandi Farmer"
-                        : session?.role === "operator"
-                        ? "APMC Mandi Operator"
-                        : "DoCA Platform Admin"}
-                    </p>
+                    {session?.role === "operator" ? (
+                      <p className="text-[11px] font-extrabold text-blue-700 uppercase tracking-wider mt-0.5">
+                        APMC Mandi Operator
+                      </p>
+                    ) : session?.role === "admin" ? (
+                      <p className="text-[11px] font-extrabold text-purple-700 uppercase tracking-wider mt-0.5">
+                        DoCA Platform Admin
+                      </p>
+                    ) : null}
                   </div>
                 </div>
 
@@ -454,58 +454,38 @@ export default function GlobalHeader() {
 
               {/* Farmer Personal Profile Card */}
               {session?.role === "farmer" && (
-                <div className="rounded-2xl border border-emerald-100 bg-[#f8faf9] p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-gray-400">
-                      Mandi Identity
-                    </span>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-extrabold text-emerald-800">
-                      <ShieldCheck size={12} />
-                      Verified
-                    </span>
-                  </div>
-
-                  <div className="space-y-2.5 text-xs">
+                <div className="rounded-2xl border border-emerald-100 bg-[#f8faf9] p-4 space-y-2.5 text-xs">
+                  {farmerDetails?.maskedAadhaar && (
                     <div className="flex items-center justify-between py-1 border-b border-gray-200/60">
                       <span className="text-gray-500 font-semibold flex items-center gap-1.5">
-                        <User size={13} className="text-gray-400" />
-                        Full Name
+                        <CreditCard size={13} className="text-gray-400" />
+                        Aadhaar UID
                       </span>
-                      <strong className="text-gray-900 font-bold">{farmerDetails?.fullName || session.name}</strong>
-                    </div>
-
-                    {farmerDetails?.maskedAadhaar && (
-                      <div className="flex items-center justify-between py-1 border-b border-gray-200/60">
-                        <span className="text-gray-500 font-semibold flex items-center gap-1.5">
-                          <CreditCard size={13} className="text-gray-400" />
-                          Aadhaar UID
-                        </span>
-                        <span className="font-mono font-black text-gray-900 tracking-wider">
-                          {farmerDetails.maskedAadhaar}
-                        </span>
-                      </div>
-                    )}
-
-                    {(farmerDetails?.village || farmerDetails?.district || farmerDetails?.state) && (
-                      <div className="flex items-start justify-between py-1 border-b border-gray-200/60">
-                        <span className="text-gray-500 font-semibold flex items-center gap-1.5 pt-0.5">
-                          <MapPin size={13} className="text-gray-400 shrink-0" />
-                          Location
-                        </span>
-                        <span className="font-bold text-gray-800 text-right max-w-[180px]">
-                          {[farmerDetails.village, farmerDetails.district, farmerDetails.state]
-                            .filter(Boolean)
-                            .join(", ")}
-                        </span>
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between py-0.5">
-                      <span className="text-gray-500 font-semibold">Khasra Status</span>
-                      <span className="font-extrabold text-emerald-800">
-                        Land Records Linked
+                      <span className="font-mono font-black text-gray-900 tracking-wider">
+                        {farmerDetails.maskedAadhaar}
                       </span>
                     </div>
+                  )}
+
+                  {(farmerDetails?.village || farmerDetails?.district || farmerDetails?.state) && (
+                    <div className="flex items-start justify-between py-1 border-b border-gray-200/60">
+                      <span className="text-gray-500 font-semibold flex items-center gap-1.5 pt-0.5">
+                        <MapPin size={13} className="text-gray-400 shrink-0" />
+                        Location
+                      </span>
+                      <span className="font-bold text-gray-800 text-right max-w-[180px]">
+                        {[farmerDetails.village, farmerDetails.district, farmerDetails.state]
+                          .filter(Boolean)
+                          .join(", ")}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between py-0.5">
+                    <span className="text-gray-500 font-semibold">Khasra Status</span>
+                    <span className="font-extrabold text-emerald-800">
+                      Land Records Linked
+                    </span>
                   </div>
                 </div>
               )}

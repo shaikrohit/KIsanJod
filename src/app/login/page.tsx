@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLanguage } from "@/lib/i18n";
-import { ArrowLeft, Building2, Landmark, ShieldCheck, KeyRound, Sparkles } from "lucide-react";
+import { ArrowLeft, Building2, Landmark, Sparkles } from "lucide-react";
 
 type LoginRole = "farmer" | "operator" | "admin";
 
@@ -191,7 +191,7 @@ function LoginContent() {
   const isFarmer = role === "farmer";
 
   return (
-    <div className="min-h-[75vh] flex items-center justify-center py-6 px-2">
+    <div className="min-h-[75vh] flex flex-col items-center justify-center py-6 px-2">
       <div className="w-full max-w-lg glass-card p-6 sm:p-8 relative">
         
         {/* ========================================================================= */}
@@ -289,7 +289,7 @@ function LoginContent() {
               </form>
             ) : (
               <form onSubmit={handleVerifyOtp} className="space-y-4">
-                {/* Masked Aadhaar Badge */}
+                {/* Masked Aadhaar Badge with single Change action */}
                 <div className="flex items-center justify-between px-3.5 py-2.5 bg-emerald-50/70 border border-emerald-200/80 rounded-2xl text-xs">
                   <div className="flex items-center gap-2 text-emerald-950 font-bold">
                     <span>🪪</span>
@@ -334,40 +334,12 @@ function LoginContent() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="btn-touch w-full bg-gradient-to-r from-emerald-800 to-emerald-700 hover:from-emerald-700 hover:to-emerald-600 text-white shadow-lg disabled:opacity-50"
+                  className="btn-touch w-full bg-gradient-to-r from-emerald-800 to-emerald-700 hover:from-emerald-700 hover:to-emerald-600 text-white shadow-lg disabled:opacity-50 font-black"
                 >
-                  {loading ? t("verifying") : `✓ ${t("verifyOtp")} & Enter Portal`}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStep("aadhaar");
-                    setOtp("");
-                    setError("");
-                  }}
-                  className="w-full text-xs text-gray-500 font-bold hover:text-emerald-800 text-center block pt-1 transition-colors"
-                >
-                  ← {t("changeAadhaar")}
+                  {loading ? t("verifying") : `Verify OTP →`}
                 </button>
               </form>
             )}
-
-            {/* Discreet Official / Staff Login Link at the bottom */}
-            <div className="mt-8 pt-5 border-t border-gray-100 text-center">
-              <button
-                type="button"
-                onClick={() => {
-                  setRole("operator");
-                  setError("");
-                }}
-                className="inline-flex items-center gap-2 text-xs font-extrabold text-gray-500 hover:text-emerald-800 bg-gray-50 hover:bg-emerald-50/80 px-4 py-2.5 rounded-xl transition-all border border-gray-200/80 active:scale-95 shadow-2xs group"
-              >
-                <span>🏛️</span>
-                <span>Official / APMC Staff Login</span>
-                <span className="text-emerald-700 font-black group-hover:translate-x-0.5 transition-transform">→</span>
-              </button>
-            </div>
           </>
         ) : (
           /* ========================================================================= */
@@ -495,9 +467,9 @@ function LoginContent() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="btn-touch w-full bg-gradient-to-r from-blue-700 to-blue-600 hover:from-blue-600 hover:to-blue-500 text-white shadow-lg disabled:opacity-50"
+                    className="btn-touch w-full bg-gradient-to-r from-blue-700 to-blue-600 hover:from-blue-600 hover:to-blue-500 text-white shadow-lg disabled:opacity-50 font-black"
                   >
-                    {loading ? t("loggingIn") : `Login to Weighing Console →`}
+                    {loading ? t("loggingIn") : `Login →`}
                   </button>
                 </form>
               </div>
@@ -562,9 +534,9 @@ function LoginContent() {
 
                   <button
                     type="submit"
-                    className="btn-touch w-full bg-gradient-to-r from-purple-700 to-purple-600 hover:from-purple-600 hover:to-purple-500 text-white shadow-lg"
+                    className="btn-touch w-full bg-gradient-to-r from-purple-700 to-purple-600 hover:from-purple-600 hover:to-purple-500 text-white shadow-lg font-black"
                   >
-                    Login to DoCA Admin Portal →
+                    Login →
                   </button>
                 </form>
               </div>
@@ -572,6 +544,22 @@ function LoginContent() {
           </>
         )}
       </div>
+
+      {/* Very bottom of the website: Faint discreet Staff Portal link (only on Step 1) */}
+      {isFarmer && step === "aadhaar" && (
+        <div className="mt-8 text-center">
+          <button
+            type="button"
+            onClick={() => {
+              setRole("operator");
+              setError("");
+            }}
+            className="text-xs text-gray-400 hover:text-emerald-800 transition-colors py-1.5 px-3 rounded-xl hover:bg-black/5"
+          >
+            Staff Portal →
+          </button>
+        </div>
+      )}
     </div>
   );
 }

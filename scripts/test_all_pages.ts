@@ -87,6 +87,9 @@ async function runAudit() {
     "/crops/chana.jpg",
     "/crops/moong.jpg",
     "/manifest.json",
+    "/icon-192.png",
+    "/icon-512.png",
+    "/sw.js",
   ];
   for (const asset of assets) {
     try {

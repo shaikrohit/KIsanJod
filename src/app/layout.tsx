@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { LanguageProvider } from "@/lib/i18n";
 import GlobalHeader from "@/components/GlobalHeader";
+import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 
 export const metadata: Metadata = {
   title: "KisanJod - Mandi Slot Booking & Procurement PWA",
@@ -26,6 +27,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="min-h-screen antialiased selection:bg-emerald-200">
         <LanguageProvider>
+          <ServiceWorkerRegister />
           <div className="flex flex-col min-h-screen">
             <GlobalHeader />
             <main className="flex-1 mx-auto max-w-5xl w-full px-3 py-5 sm:px-6">
