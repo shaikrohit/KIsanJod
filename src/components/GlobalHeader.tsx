@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { PwaInstallPrompt, PwaInstallDrawerAction } from "@/components/PwaInstallPrompt";
 import { ConfirmationModal } from "@/components/ConfirmationModal";
+import { ClientPortal } from "@/components/ClientPortal";
 
 type LoggedInSession =
   | { role: "farmer"; name: string; id: string }
@@ -316,32 +317,36 @@ export default function GlobalHeader() {
         {/* ========================================================================= */}
         <div className="flex items-center gap-2">
           {session ? (
-            /* Logged-in profile trigger: Avatar + 2-line title (Name on top, KisanJod below) */
+            /* Logged-in profile trigger: 2-line title (Name on top, KisanJod below) on LEFT, Profile Avatar on RIGHT */
             <button
               type="button"
               onClick={() => setProfileDrawerOpen(true)}
-              className="group flex items-center gap-2 sm:gap-2.5 rounded-2xl border border-emerald-200/80 bg-white/90 p-1 sm:p-1.5 pr-2.5 sm:pr-3 shadow-2xs transition-all hover:bg-emerald-50/70 hover:border-emerald-300 hover:shadow-sm active:scale-[0.98] text-left"
+              className="group flex items-center gap-2 sm:gap-2.5 rounded-2xl border border-emerald-200/80 bg-white/90 p-1 sm:p-1.5 pl-2.5 sm:pl-3 pr-1 sm:pr-1.5 shadow-2xs transition-all hover:bg-emerald-50/70 hover:border-emerald-300 hover:shadow-sm active:scale-[0.98] text-right"
               aria-label="Open Farmer Profile and Menu"
             >
-              {/* Avatar Icon */}
-              <div className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full bg-[#176b4b] text-white shadow-xs transition-transform group-hover:scale-105">
-                {session.role === "farmer" ? (
-                  <Sprout size={18} className="text-emerald-100" aria-hidden="true" />
-                ) : session.role === "operator" ? (
-                  <Building2 size={18} className="text-emerald-100" aria-hidden="true" />
-                ) : (
-                  <Landmark size={18} className="text-emerald-100" aria-hidden="true" />
-                )}
-              </div>
-
               {/* 2-line Label: Farmer Name (bold, larger) on top, KisanJod (smaller) below */}
-              <div className="flex flex-col min-w-0">
+              <div className="flex flex-col min-w-0 items-end text-right">
                 <span className="text-xs sm:text-sm font-black text-[#17382d] leading-tight truncate max-w-[110px] sm:max-w-[170px]">
                   {session.name}
                 </span>
                 <span className="text-[10px] sm:text-[11px] font-extrabold text-emerald-700 leading-tight tracking-wide">
                   KisanJod
                 </span>
+              </div>
+
+              {/* Profile Avatar on the far right corner */}
+              <div className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full bg-[#176b4b] text-white shadow-xs transition-transform group-hover:scale-105 overflow-hidden border border-emerald-300">
+                {session.role === "farmer" ? (
+                  <img
+                    src="/icons/farmer-avatar.svg"
+                    alt="Farmer Profile"
+                    className="h-full w-full object-cover"
+                  />
+                ) : session.role === "operator" ? (
+                  <Building2 size={18} className="text-emerald-100" aria-hidden="true" />
+                ) : (
+                  <Landmark size={18} className="text-emerald-100" aria-hidden="true" />
+                )}
               </div>
             </button>
           ) : (
@@ -385,35 +390,40 @@ export default function GlobalHeader() {
       {/* SLIDE-OVER PROFILE DRAWER (Opens on clicking farmer profile trigger)       */}
       {/* ========================================================================= */}
       {profileDrawerOpen && (
-        <div className="fixed inset-0 z-[100] flex justify-end">
-          {/* Backdrop overlay */}
-          <div
-            className="fixed inset-0 bg-black/45 backdrop-blur-xs transition-opacity duration-300 animate-in fade-in"
-            onClick={() => setProfileDrawerOpen(false)}
-            aria-hidden="true"
-          />
+        <ClientPortal>
+          <div className="fixed inset-0 z-[99990] flex justify-end">
+            {/* Backdrop overlay */}
+            <div
+              className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-300 animate-in fade-in"
+              onClick={() => setProfileDrawerOpen(false)}
+              aria-hidden="true"
+            />
 
-          {/* Slide-over Drawer Panel */}
-          <aside
-            className="relative z-10 w-full max-w-sm sm:max-w-md bg-white h-full shadow-2xl flex flex-col justify-between p-5 sm:p-6 transition-transform duration-300 ease-out animate-in slide-in-from-right overflow-y-auto"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Farmer Profile Drawer"
-          >
-            {/* Top Content */}
-            <div className="space-y-5">
-              {/* Drawer Header with Close Button */}
-              <div className="flex items-center justify-between pb-3.5 border-b border-gray-100">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#edf5ef] border border-emerald-200 text-emerald-800 shadow-2xs">
-                    {session?.role === "farmer" ? (
-                      <Sprout size={22} className="text-[#176b4b]" />
-                    ) : session?.role === "operator" ? (
-                      <Building2 size={22} className="text-[#176b4b]" />
-                    ) : (
-                      <Landmark size={22} className="text-[#176b4b]" />
-                    )}
-                  </div>
+            {/* Slide-over Drawer Panel */}
+            <aside
+              className="relative z-10 w-full max-w-sm sm:max-w-md bg-white h-full shadow-2xl flex flex-col justify-between p-5 sm:p-6 transition-transform duration-300 ease-out animate-in slide-in-from-right overflow-y-auto"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Farmer Profile Drawer"
+            >
+              {/* Top Content */}
+              <div className="space-y-5">
+                {/* Drawer Header with Close Button */}
+                <div className="flex items-center justify-between pb-3.5 border-b border-gray-100">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#edf5ef] border border-emerald-200 text-emerald-800 shadow-2xs overflow-hidden">
+                      {session?.role === "farmer" ? (
+                        <img
+                          src="/icons/farmer-avatar.svg"
+                          alt="Farmer Profile"
+                          className="h-full w-full object-cover"
+                        />
+                      ) : session?.role === "operator" ? (
+                        <Building2 size={22} className="text-[#176b4b]" />
+                      ) : (
+                        <Landmark size={22} className="text-[#176b4b]" />
+                      )}
+                    </div>
                   <div>
                     <h2 className="text-base font-black text-gray-900 leading-tight">
                       {session?.name}
@@ -541,6 +551,7 @@ export default function GlobalHeader() {
             </div>
           </aside>
         </div>
+      </ClientPortal>
       )}
 
       {/* Confirmation Modal for Profile Logout */}

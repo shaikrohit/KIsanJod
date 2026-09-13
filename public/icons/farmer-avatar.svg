@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#14532d" />
+      <stop offset="100%" stop-color="#042f1a" />
+    </linearGradient>
+    <linearGradient id="turbanGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+    <linearGradient id="skinGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fed7aa" />
+      <stop offset="100%" stop-color="#fba063" />
+    </linearGradient>
+  </defs>
+  <!-- Background Circle -->
+  <circle cx="64" cy="64" r="64" fill="url(#bgGrad)" />
+  
+  <!-- Kurta / Shoulders -->
+  <path d="M20 128 C22 96, 42 86, 64 86 C86 86, 106 96, 108 128 Z" fill="#ffffff" />
+  <path d="M54 86 L64 104 L74 86 Z" fill="#e2e8f0" />
+  <path d="M64 104 L64 128" stroke="#cbd5e1" stroke-width="2" />
+  
+  <!-- Neck -->
+  <rect x="54" y="70" width="20" height="20" rx="4" fill="#fba063" />
+  
+  <!-- Head / Face -->
+  <ellipse cx="64" cy="62" rx="22" ry="24" fill="url(#skinGrad)" />
+  
+  <!-- Ears -->
+  <circle cx="42" cy="62" r="5" fill="#fba063" />
+  <circle cx="86" cy="62" r="5" fill="#fba063" />
+  
+  <!-- Eyes -->
+  <ellipse cx="55" cy="60" rx="2.5" ry="3" fill="#1e293b" />
+  <ellipse cx="73" cy="60" rx="2.5" ry="3" fill="#1e293b" />
+  <circle cx="56" cy="59" r="0.8" fill="#ffffff" />
+  <circle cx="74" cy="59" r="0.8" fill="#ffffff" />
+  
+  <!-- Eyebrows -->
+  <path d="M50 54 Q55 52 60 54" stroke="#451a03" stroke-width="2" stroke-linecap="round" fill="none" />
+  <path d="M68 54 Q73 52 78 54" stroke="#451a03" stroke-width="2" stroke-linecap="round" fill="none" />
+  
+  <!-- Nose -->
+  <path d="M64 59 L62 67 L66 67" stroke="#ea580c" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+  
+  <!-- Mustache -->
+  <path d="M52 73 Q64 77 64 72 Q64 77 76 73 Q71 79 64 77 Q57 79 52 73 Z" fill="#451a03" />
+  
+  <!-- Smile -->
+  <path d="M58 79 Q64 83 70 79" stroke="#9a3412" stroke-width="1.5" stroke-linecap="round" fill="none" />
+  
+  <!-- Turban (Pagri) with folds -->
+  <path d="M40 48 C36 28, 52 16, 64 16 C76 16, 92 28, 88 48 C88 50, 78 48, 64 48 C50 48, 40 50, 40 48 Z" fill="url(#turbanGrad)" />
+  <path d="M38 46 Q64 36 90 46 Q64 52 38 46 Z" fill="#f59e0b" />
+  <path d="M42 38 Q64 26 86 38" stroke="#d97706" stroke-width="2.5" fill="none" />
+  <path d="M46 30 Q64 20 82 30" stroke="#b45309" stroke-width="2" fill="none" />
+  
+  <!-- Turban Crest / Kalgi Jewel -->
+  <circle cx="64" cy="30" r="3.5" fill="#ef4444" stroke="#fef08a" stroke-width="1.5" />
+</svg>
+

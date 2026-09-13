@@ -228,6 +228,7 @@ function BookingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const preSelectedCropKey = searchParams.get("crop") || searchParams.get("cropName");
+  const preSelectedCategory = searchParams.get("category");
   const preSelectedPackageCount = searchParams.get("packageCount");
   const preSelectedCentreId = searchParams.get("centreId");
   const rescheduleBookingId = searchParams.get("rescheduleBookingId");
@@ -235,6 +236,7 @@ function BookingContent() {
 
   const [step, setStep] = useState(1);
   const [selectedCrop, setSelectedCrop] = useState<CropInfo | null>(null);
+  const [activeCategory, setActiveCategory] = useState<string>("All");
 
   // Requirement 3 & 6: Package count, capacity, and active worker modeling
   const [packageCount, setPackageCount] = useState<number>(10);
@@ -277,7 +279,7 @@ function BookingContent() {
     setFarmerId(JSON.parse(stored).id);
   }, [router]);
 
-  // Handle URL pre-selection
+  // Handle URL pre-selection (Direct Crop or Category Filter)
   useEffect(() => {
     if (preSelectedCropKey) {
       const match = CROPS.find(
@@ -292,8 +294,13 @@ function BookingContent() {
         }
         setStep(2);
       }
+    } else if (preSelectedCategory) {
+      const cat = preSelectedCategory.toLowerCase();
+      if (cat.includes("veg")) setActiveCategory("Vegetables");
+      else if (cat.includes("grain")) setActiveCategory("Grains");
+      else if (cat.includes("pulse")) setActiveCategory("Pulses");
     }
-  }, [preSelectedCropKey, preSelectedPackageCount]);
+  }, [preSelectedCropKey, preSelectedPackageCount, preSelectedCategory]);
 
   useEffect(() => {
     fetch("/api/centres")
@@ -496,7 +503,7 @@ function BookingContent() {
       {/* ========================================================================= */}
       {step === 1 && (
         <div className="glass-card p-6 sm:p-7 space-y-5">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
               <span className="pill green mb-1.5">
                 {t("step")} 1 • APMC Regulated
@@ -506,13 +513,49 @@ function BookingContent() {
               </h2>
             </div>
             <span className="text-xs font-bold text-gray-500">
-              {CROPS.length} Mandi Commodities
+              {CROPS.length} Mandi Commodities Available
             </span>
           </div>
 
-          {/* Crop Cards with Visual Imagery & Text Overlay (Requirement 5) */}
+          {/* Interactive Category Filter Tabs */}
+          <div className="flex flex-wrap items-center gap-2 pt-1 border-b border-gray-100 pb-3">
+            {[
+              { key: "All", label: "All Commodities", icon: "🌱", count: CROPS.length },
+              { key: "Grains", label: "Grains & Cereals", icon: "🌾", count: CROPS.filter(c => c.category === "Grains").length },
+              { key: "Pulses", label: "Pulses", icon: "🫘", count: CROPS.filter(c => c.category === "Pulses").length },
+              { key: "Vegetables", label: "Vegetables", icon: "🍅", count: CROPS.filter(c => c.category === "Vegetables").length },
+            ].map((cat) => {
+              const isActive = activeCategory === cat.key;
+              return (
+                <button
+                  key={cat.key}
+                  type="button"
+                  onClick={() => setActiveCategory(cat.key)}
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-black transition-all active:scale-95 ${
+                    isActive
+                      ? "bg-emerald-800 text-white shadow-sm border border-emerald-900"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200"
+                  }`}
+                >
+                  <span>{cat.icon}</span>
+                  <span>{cat.label}</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${isActive ? "bg-emerald-950 text-emerald-200" : "bg-white text-gray-600 border border-gray-200"}`}>
+                    {cat.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Crop Cards with Visual Imagery & Text Overlay */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            {CROPS.map((crop) => {
+            {CROPS.filter((crop) => {
+              if (activeCategory === "All") return true;
+              if (activeCategory === "Grains") return crop.category === "Grains";
+              if (activeCategory === "Pulses") return crop.category === "Pulses";
+              if (activeCategory === "Vegetables") return crop.category === "Vegetables";
+              return true;
+            }).map((crop) => {
               const isSelected = selectedCrop?.key === crop.key;
               return (
                 <button
@@ -541,6 +584,13 @@ function BookingContent() {
                   {/* Dark Multi-Stop Gradient Overlay for Clean Legibility */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/45 to-black/20" />
 
+                  {/* Top Category Badge */}
+                  <div className="absolute top-3 left-3 z-10">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-black/50 text-emerald-200 border border-white/20 backdrop-blur-xs">
+                      {crop.category}
+                    </span>
+                  </div>
+
                   {/* Bottom Text Content Positioned Cleanly Inside Over Image */}
                   <div className="absolute bottom-3 left-3 right-3 z-10 text-white">
                     <h3 className="text-xl font-black font-heading tracking-tight drop-shadow-sm text-white flex items-center justify-between">
@@ -551,7 +601,10 @@ function BookingContent() {
                     </h3>
                     <div className="flex items-center justify-between mt-1 pt-1 border-t border-white/20 text-xs">
                       <span className="text-amber-300 font-extrabold drop-shadow-sm">
-                        ₹{crop.msp}/Qtl
+                        MSP: ₹{crop.msp}/Qtl
+                      </span>
+                      <span className="text-[11px] text-gray-200 font-semibold">
+                        {crop.packagingBadge}
                       </span>
                     </div>
                   </div>

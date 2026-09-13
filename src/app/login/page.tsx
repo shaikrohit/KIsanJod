@@ -179,22 +179,42 @@ export default function UnifiedLoginPage() {
   return (
     <div className="min-h-[75vh] flex items-center justify-center py-6 px-2">
       <div className="w-full max-w-lg glass-card p-6 sm:p-8 relative">
-        {/* Top Header Row with Role Switcher Tabs */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 mb-5 border-b border-gray-200/80">
-          <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 font-heading">
-              {role === "farmer" ? t("farmerLogin") : role === "operator" ? t("operatorLogin") : t("adminLogin")}
-            </h2>
-            <p className="text-xs text-gray-500 mt-0.5">
-              {role === "farmer"
-                ? t("farmerLoginSubtitle")
-                : role === "operator"
-                ? t("operatorSubtitle")
-                : t("adminSubtitle")}
-            </p>
+        {/* Top Header Row: If OTP step, show Welcome Farmer; otherwise show role header */}
+        {role === "farmer" && step === "otp" ? (
+          <div className="flex items-center gap-3.5 pb-5 mb-5 border-b border-emerald-100">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-100/70 border border-emerald-200 text-2xl shadow-xs overflow-hidden">
+              <img
+                src="/icons/farmer-avatar.svg"
+                alt="Farmer Profile"
+                className="h-full w-full object-cover"
+              />
+            </div>
+            <div>
+              <h2 className="text-xl sm:text-2xl font-black text-gray-900 font-heading leading-tight">
+                {t("welcome")}, {farmerName}
+              </h2>
+              <p className="text-xs text-emerald-800 font-bold mt-0.5 flex items-center gap-1.5">
+                <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                Aadhaar verified • Enter 6-digit OTP to continue
+              </p>
+            </div>
           </div>
-
-        </div>
+        ) : (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 mb-5 border-b border-gray-200/80">
+            <div>
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 font-heading">
+                {role === "farmer" ? t("farmerLogin") : role === "operator" ? t("operatorLogin") : t("adminLogin")}
+              </h2>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {role === "farmer"
+                  ? t("farmerLoginSubtitle")
+                  : role === "operator"
+                  ? t("operatorSubtitle")
+                  : t("adminSubtitle")}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Error Alert */}
         {error && (
@@ -253,27 +273,44 @@ export default function UnifiedLoginPage() {
               </form>
             ) : (
               <form onSubmit={handleVerifyOtp} className="space-y-4">
-                <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-center">
-                  <p className="text-xs text-emerald-800">
-                    {t("welcome")}, <strong>{farmerName}</strong>
-                  </p>
+                {/* Masked Aadhaar Badge */}
+                <div className="flex items-center justify-between px-3.5 py-2.5 bg-emerald-50/70 border border-emerald-200/80 rounded-2xl text-xs">
+                  <div className="flex items-center gap-2 text-emerald-950 font-bold">
+                    <span>🪪</span>
+                    <span className="text-gray-600">Aadhaar:</span>
+                    <span className="font-mono tracking-wider font-extrabold text-emerald-900">
+                      {aadhaar ? `•••• •••• ${aadhaar.replace(/\s/g, "").slice(-4)}` : "•••• •••• 5678"}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStep("aadhaar");
+                      setOtp("");
+                      setError("");
+                    }}
+                    className="text-emerald-700 hover:text-emerald-900 font-extrabold text-[11px] underline underline-offset-2 transition-colors"
+                  >
+                    {t("changeAadhaar")}
+                  </button>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                  <label className="block text-xs font-black text-gray-700 uppercase tracking-wider mb-1.5">
                     {t("otpLabel")}
                   </label>
                   <input
                     type="text"
+                    inputMode="numeric"
                     maxLength={6}
                     value={otp}
                     onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
                     placeholder="123456"
-                    className="w-full px-4 py-3.5 text-2xl font-extrabold text-center tracking-[0.4em] border-2 border-emerald-200 rounded-2xl focus:border-emerald-600 focus:bg-white focus:outline-none bg-emerald-50/30"
+                    className="w-full px-4 py-3.5 text-2xl sm:text-3xl font-black text-center tracking-[0.35em] border-2 border-emerald-300 rounded-2xl focus:border-emerald-600 focus:bg-white focus:outline-none bg-emerald-50/40 text-gray-900 font-mono shadow-inner transition-all"
                     autoFocus
                     required
                   />
-                  <p className="mt-2 text-xs text-amber-800 bg-amber-50 p-2 rounded-xl text-center font-bold border border-amber-200/80">
+                  <p className="mt-2 text-xs text-amber-800 bg-amber-50 p-2.5 rounded-xl text-center font-bold border border-amber-200/80">
                     💡 {t("otpHint")}
                   </p>
                 </div>
@@ -281,9 +318,9 @@ export default function UnifiedLoginPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="btn-touch w-full bg-gradient-to-r from-emerald-800 to-emerald-700 text-white shadow-lg disabled:opacity-50"
+                  className="btn-touch w-full bg-gradient-to-r from-emerald-800 to-emerald-700 hover:from-emerald-700 hover:to-emerald-600 text-white shadow-lg disabled:opacity-50"
                 >
-                  {loading ? t("verifying") : `✓ ${t("verifyOtp")}`}
+                  {loading ? t("verifying") : `✓ ${t("verifyOtp")} & Enter Portal`}
                 </button>
 
                 <button
@@ -293,7 +330,7 @@ export default function UnifiedLoginPage() {
                     setOtp("");
                     setError("");
                   }}
-                  className="w-full text-xs text-emerald-700 font-semibold hover:underline text-center block pt-1"
+                  className="w-full text-xs text-gray-500 font-bold hover:text-emerald-800 text-center block pt-1 transition-colors"
                 >
                   ← {t("changeAadhaar")}
                 </button>

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { AlertTriangle, HelpCircle, Volume2, X } from "lucide-react";
+import { ClientPortal } from "@/components/ClientPortal";
 
 export interface ConfirmationModalProps {
   isOpen: boolean;
@@ -76,7 +77,8 @@ export function ConfirmationModal({
       : "bg-emerald-700 hover:bg-emerald-800 text-white shadow-emerald-900/20";
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
+    <ClientPortal>
+      <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
       <div
         role="dialog"
         aria-modal="true"
@@ -188,7 +190,8 @@ export function ConfirmationModal({
           </button>
         </div>
       </div>
-    </div>
+      </div>
+    </ClientPortal>
   );
 }
 
