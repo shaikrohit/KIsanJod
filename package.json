@@ -16,7 +16,8 @@
     "test:pages": "tsx scripts/test_all_pages.ts",
     "test:sync": "tsx scripts/verify_realtime_sync.ts",
     "test:e2e": "tsx scripts/run_e2e_tests.ts",
-    "test:full": "tsx scripts/verify_full_system.ts"
+    "test:full": "tsx scripts/verify_full_system.ts",
+    "db:switch": "node scripts/switch_db.js"
   },
   "dependencies": {
     "@prisma/client": "5.21.1",
