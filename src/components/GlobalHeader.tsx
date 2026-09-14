@@ -21,6 +21,7 @@ import {
 import { PwaInstallPrompt, PwaInstallDrawerAction } from "@/components/PwaInstallPrompt";
 import { ConfirmationModal } from "@/components/ConfirmationModal";
 import { ClientPortal } from "@/components/ClientPortal";
+import { startSpeechReader, stopSpeechReader } from "@/lib/speechReader";
 
 type LoggedInSession =
   | { role: "farmer"; name: string; id: string }
@@ -48,8 +49,6 @@ export default function GlobalHeader() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [langMenuOpen, setLangMenuOpen] = useState(false);
-  const [spokenSegments, setSpokenSegments] = useState<string[]>([]);
-  const [activeSpeechIndex, setActiveSpeechIndex] = useState(-1);
 
   const langDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -165,66 +164,28 @@ export default function GlobalHeader() {
     router.push("/login");
   };
 
-  // Global speech readout function
+  // Stop speech reader on route change or unmount
+  useEffect(() => {
+    stopSpeechReader();
+    setIsSpeaking(false);
+  }, [pathname]);
+
+  // Global speech readout function with in-place text highlighting
   const toggleSpeech = () => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
-      alert(t("unsupportedSpeech"));
-      return;
-    }
-
     if (isSpeaking) {
-      window.speechSynthesis.cancel();
+      stopSpeechReader();
       setIsSpeaking(false);
-      setSpokenSegments([]);
-      setActiveSpeechIndex(-1);
-      return;
-    }
-
-    const mainEl = document.querySelector("main") || document.body;
-    if (!mainEl) return;
-
-    const clone = mainEl.cloneNode(true) as HTMLElement;
-    const toRemove = clone.querySelectorAll(
-      "nav, header, button, script, style, .icon, [aria-hidden='true']"
-    );
-    toRemove.forEach((el) => el.remove());
-
-    const textToRead = clone.innerText
-      .replace(/\s+/g, " ")
-      .trim()
-      .slice(0, 1500);
-
-    if (!textToRead) return;
-
-    window.speechSynthesis.cancel();
-    const segments = textToRead.match(/[^.!?]+[.!?]+|[^.!?]+$/g)?.map((s) => s.trim()) || [textToRead];
-    const utterance = new SpeechSynthesisUtterance(segments.join(" "));
-    utterance.lang = locale === "hi" ? "hi-IN" : locale === "te" ? "te-IN" : "en-IN";
-    utterance.rate = 0.92;
-
-    utterance.onboundary = (event) => {
-      let offset = 0;
-      const index = segments.findIndex((segment) => {
-        const start = offset;
-        offset += segment.length + 1;
-        return event.charIndex >= start && event.charIndex < offset;
+    } else {
+      const started = startSpeechReader({
+        locale,
+        onStart: () => setIsSpeaking(true),
+        onEnd: () => setIsSpeaking(false),
+        onError: () => setIsSpeaking(false),
       });
-      if (index >= 0) setActiveSpeechIndex(index);
-    };
-    utterance.onend = () => {
-      setIsSpeaking(false);
-      setActiveSpeechIndex(-1);
-    };
-    utterance.onerror = () => {
-      setIsSpeaking(false);
-      setSpokenSegments([]);
-      setActiveSpeechIndex(-1);
-    };
-
-    window.speechSynthesis.speak(utterance);
-    setSpokenSegments(segments);
-    setActiveSpeechIndex(0);
-    setIsSpeaking(true);
+      if (!started) {
+        setIsSpeaking(false);
+      }
+    }
   };
 
   // Language options
@@ -365,19 +326,6 @@ export default function GlobalHeader() {
         </div>
       </div>
 
-      {/* Floating Speech Reader progress bar if speaking */}
-      {isSpeaking && spokenSegments.length > 0 && (
-        <div className="speech-reader-panel" role="status" aria-live="polite">
-          <Volume2 size={16} aria-hidden="true" />
-          <p>
-            {spokenSegments.map((segment, index) => (
-              <span key={`${segment}-${index}`} className={index === activeSpeechIndex ? "speech-segment-active" : ""}>
-                {segment}{" "}
-              </span>
-            ))}
-          </p>
-        </div>
-      )}
 
       {/* Background Toast for PWA installation (no header button clutter) */}
       <PwaInstallPrompt showHeaderButton={false} />

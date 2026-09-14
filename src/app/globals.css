@@ -132,23 +132,13 @@ h1, h2, h3, h4, .font-heading {
   font-size: 12px;
   font-weight: 800;
 }
-.speech-reader-panel {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 10px 16px 12px;
-  border-top: 1px solid #dbe6df;
-  color: #315449;
-  font-size: 12px;
-  line-height: 1.6;
-}
-.speech-segment-active {
-  border-radius: 4px;
-  background: #ffe8a8;
-  color: #4b3510;
-  box-shadow: 0 0 0 2px #ffe8a8;
+/* In-place website text highlight during Listen / Read Aloud */
+.speech-active-highlight {
+  background-color: #fde68a !important; /* amber-200 */
+  color: #09090b !important; /* zinc-950 */
+  border-radius: 6px !important;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.5) !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 /* Hero card with high-res overlay */

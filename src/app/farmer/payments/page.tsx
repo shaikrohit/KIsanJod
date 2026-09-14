@@ -34,8 +34,32 @@ export default function PaymentsPage() {
   const router = useRouter();
   const { t } = useLanguage();
 
-  const [bookings, setBookings] = useState<BookingData[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [bookings, setBookings] = useState<BookingData[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("kisanjod_farmer");
+        if (stored) {
+          const f = JSON.parse(stored);
+          const cached = sessionStorage.getItem("kisanjod_bills_" + f.id);
+          if (cached) return JSON.parse(cached);
+        }
+      } catch {}
+    }
+    return [];
+  });
+  const [loading, setLoading] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("kisanjod_farmer");
+        if (stored) {
+          const f = JSON.parse(stored);
+          const cached = sessionStorage.getItem("kisanjod_bills_" + f.id);
+          if (cached) return false;
+        }
+      } catch {}
+    }
+    return true;
+  });
 
   const fetchPayments = useCallback(() => {
     try {
@@ -43,15 +67,27 @@ export default function PaymentsPage() {
       if (!stored) return;
       const f = JSON.parse(stored);
       fetch(`/api/bookings?farmerId=${f.id}`)
-        .then((r) => r.json())
+        .then((r) => {
+          if (!r.ok) throw new Error("Fetch failed");
+          return r.json();
+        })
         .then((d) => {
-          setBookings(
-            (d.bookings || []).filter((b: BookingData) => b.procurementBill)
-          );
+          if (d && Array.isArray(d.bookings)) {
+            const validBills = d.bookings.filter((b: BookingData) => b.procurementBill);
+            setBookings(validBills);
+            try {
+              sessionStorage.setItem("kisanjod_bills_" + f.id, JSON.stringify(validBills));
+            } catch {}
+          }
           setLoading(false);
         })
-        .catch(() => setLoading(false));
-    } catch {}
+        .catch(() => {
+          // Never reset existing bookings on network hiccups to avoid blinking!
+          setLoading(false);
+        });
+    } catch {
+      setLoading(false);
+    }
   }, []);
 
   // Zero-delay instant sync via SSE stream and BroadcastChannel
@@ -65,8 +101,8 @@ export default function PaymentsPage() {
     }
     fetchPayments();
 
-    // Fast 1000ms backup heartbeat
-    const interval = setInterval(fetchPayments, 1000);
+    // Gentle 20-second safety heartbeat (SSE handles real-time immediate updates)
+    const interval = setInterval(fetchPayments, 20000);
     return () => clearInterval(interval);
   }, [router, fetchPayments]);
 
