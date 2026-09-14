@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useLanguage } from "@/lib/i18n";
@@ -30,23 +30,29 @@ interface BookingData {
   id: string;
   tokenNumber: string;
   cropName: string;
-  status: string;
+  estimatedQuantityQtl: number;
+  scheduledDate?: string;
+  scheduledSlot?: string;
   scheduledSlotStart: string;
   scheduledSlotEnd: string;
   bookedDate: string;
-  estimatedQuantityQtl: number;
+  status: string;
   centerId: string;
-  center: { name: string; district: string };
+  center?: { name: string; district: string; state?: string };
   packageCount?: number;
   unitType?: string;
   bayAssigned?: number | null;
   sessionName?: string;
+  qcPassed?: boolean | null;
+  weighbridgeNetWeight?: number | null;
   procurementBill?: {
-    netAmountPayable: number;
-    billNumber: string;
+    billNumber?: string;
+    totalPayout?: number;
+    netAmountPayable?: number;
     netWeightQtl?: number;
     notifiedMspRate?: number;
     qualityGrade?: string;
+    mspRatePerQtl?: number;
     dbtPayment?: { status: string; bankUtr: string | null; pfmsReferenceNumber: string };
   };
 }
@@ -55,9 +61,41 @@ export default function FarmerDashboard() {
   const router = useRouter();
   const { t } = useLanguage();
 
-  const [farmer, setFarmer] = useState<FarmerData | null>(null);
-  const [bookings, setBookings] = useState<BookingData[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [farmer, setFarmer] = useState<FarmerData | null>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("kisanjod_farmer");
+        if (stored) return JSON.parse(stored);
+      } catch {}
+    }
+    return null;
+  });
+  const [bookings, setBookings] = useState<BookingData[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("kisanjod_farmer");
+        if (stored) {
+          const f = JSON.parse(stored);
+          const cached = sessionStorage.getItem("kisanjod_farmer_bookings_" + f.id);
+          if (cached) return JSON.parse(cached);
+        }
+      } catch {}
+    }
+    return [];
+  });
+  const [loading, setLoading] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("kisanjod_farmer");
+        if (stored) {
+          const f = JSON.parse(stored);
+          const cached = sessionStorage.getItem("kisanjod_farmer_bookings_" + f.id);
+          if (cached) return false;
+        }
+      } catch {}
+    }
+    return true;
+  });
   const [confirmCancelBookingId, setConfirmCancelBookingId] = useState<string | null>(null);
   const [confirmRescheduleBooking, setConfirmRescheduleBooking] = useState<BookingData | null>(null);
   const [liveQueue, setLiveQueue] = useState<{
@@ -79,6 +117,9 @@ export default function FarmerDashboard() {
     }>;
   } | null>(null);
 
+  const bookingsRef = useRef<BookingData[]>(bookings);
+  bookingsRef.current = bookings;
+
   const activeBooking = bookings.find((b) =>
     ["WAITING", "CALLED", "AT_BAY", "STANDBY"].includes(b.status)
   );
@@ -87,18 +128,31 @@ export default function FarmerDashboard() {
     const id = targetFarmerId || farmer?.id;
     if (!id) return;
     fetch(`/api/bookings?farmerId=${id}`)
-      .then((r) => r.json())
+      .then(async (r) => {
+        if (!r.ok) throw new Error("Fetch failed");
+        return r.json();
+      })
       .then((d) => {
-        if (d.bookings) {
+        if (d && Array.isArray(d.bookings)) {
           setBookings(d.bookings);
+          try {
+            sessionStorage.setItem("kisanjod_farmer_bookings_" + id, JSON.stringify(d.bookings));
+          } catch {}
         }
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => {
+        // Never reset bookings on network blips to prevent UI flickering
+        setLoading(false);
+      });
   }, [farmer?.id]);
 
   const fetchQueue = useCallback(() => {
-    const centerId = activeBooking?.centerId || bookings[0]?.centerId;
+    const currentBookings = bookingsRef.current;
+    const active = currentBookings.find((b) =>
+      ["WAITING", "CALLED", "AT_BAY", "STANDBY"].includes(b.status)
+    );
+    const centerId = active?.centerId || currentBookings[0]?.centerId;
     if (!centerId) return;
     fetch(`/api/queue/${centerId}`)
       .then((r) => r.json())
@@ -106,7 +160,7 @@ export default function FarmerDashboard() {
         if (d && !d.error) setLiveQueue(d);
       })
       .catch(() => {});
-  }, [activeBooking?.centerId, bookings]);
+  }, []);
 
   // Zero-delay instant sync over SSE stream and BroadcastChannel
   useInstantSync(() => {
@@ -123,12 +177,13 @@ export default function FarmerDashboard() {
     const f = JSON.parse(stored);
     setFarmer(f);
     fetchBookings(f.id);
+    fetchQueue();
 
-    // Fast backup heartbeat (1000ms) ensuring zero-delay updates even on intermittent connections
+    // Gentle 15-second safety heartbeat (SSE handles real-time instant sync)
     const interval = setInterval(() => {
       fetchBookings(f.id);
       fetchQueue();
-    }, 1000);
+    }, 15000);
     return () => clearInterval(interval);
   }, [router, fetchBookings, fetchQueue]);
 
@@ -285,7 +340,7 @@ export default function FarmerDashboard() {
                 Token {activeBooking.tokenNumber} is temporarily on standby
               </p>
               <p className="text-xs text-amber-100 font-medium">
-                Please report to the Mandi Operator Desk at {activeBooking.center.name}.
+                Please report to the Mandi Operator Desk at {activeBooking.center?.name || "Mandi Center"}.
               </p>
             </div>
           </div>
@@ -399,10 +454,10 @@ export default function FarmerDashboard() {
                           Procurement Centre
                         </p>
                         <p className="text-sm font-black text-gray-900 truncate">
-                          {activeBooking.center.name}
+                          {activeBooking.center?.name || "APMC Procurement Center"}
                         </p>
                         <p className="text-xs text-gray-500 truncate">
-                          {activeBooking.center.district || "APMC Regulated Mandi"}
+                          {activeBooking.center?.district || "APMC Regulated Mandi"}
                         </p>
                       </div>
                     </div>
@@ -437,7 +492,7 @@ export default function FarmerDashboard() {
                         </span>
                       </div>
                       <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs">
-                        <span className="font-bold text-gray-700">📅 {activeBooking.bookedDate}</span>
+                        <span className="font-bold text-gray-700">📅 {activeBooking.scheduledDate || activeBooking.bookedDate || "Today"}</span>
                         <span className="text-[11px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
                           ±5-10 min buffer
                         </span>
@@ -528,7 +583,7 @@ export default function FarmerDashboard() {
                 <div className="bg-white/10 rounded-2xl p-4 border border-white/10 space-y-0.5">
                   <p className="text-xs text-amber-300 font-bold uppercase tracking-wider">MSP Settlement Payable</p>
                   <p className="text-2xl font-black text-amber-300 font-heading">
-                    ₹{completedBookings[0].procurementBill.netAmountPayable.toLocaleString("en-IN")}
+                    ₹{(completedBookings[0].procurementBill?.netAmountPayable || completedBookings[0].procurementBill?.totalPayout || 0).toLocaleString("en-IN")}
                   </p>
                   <p className="text-xs text-amber-200/90 font-semibold">
                     ₹{completedBookings[0].procurementBill.notifiedMspRate || 2275}/Qtl Official MSP

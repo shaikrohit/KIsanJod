@@ -240,3 +240,4 @@ export function startSpeechReader(options: SpeechReaderOptions): boolean {
   speakNext();
   return true;
 }
+

@@ -130,14 +130,14 @@ function QueueContent() {
     fetchBookingDetails();
   });
 
-  // Initial load and fast 1000ms backup heartbeat
+  // Initial load and gentle 15-second safety heartbeat (SSE handles real-time instant sync)
   useEffect(() => {
     fetchBookingDetails();
     fetchLiveQueue();
     const timer = setInterval(() => {
       fetchBookingDetails();
       fetchLiveQueue();
-    }, 1000);
+    }, 15000);
     return () => clearInterval(timer);
   }, [fetchLiveQueue, fetchBookingDetails]);
 

@@ -164,27 +164,35 @@ export default function GlobalHeader() {
     router.push("/login");
   };
 
+  // Global speech readout function
   // Stop speech reader on route change or unmount
   useEffect(() => {
     stopSpeechReader();
     setIsSpeaking(false);
   }, [pathname]);
 
-  // Global speech readout function with in-place text highlighting
+  // Global speech readout function with in-place text highlighting (zero floating panel)
   const toggleSpeech = () => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      alert(t("unsupportedSpeech"));
+      return;
+    }
+
     if (isSpeaking) {
       stopSpeechReader();
       setIsSpeaking(false);
-    } else {
-      const started = startSpeechReader({
-        locale,
-        onStart: () => setIsSpeaking(true),
-        onEnd: () => setIsSpeaking(false),
-        onError: () => setIsSpeaking(false),
-      });
-      if (!started) {
-        setIsSpeaking(false);
-      }
+      return;
+    }
+
+    const started = startSpeechReader({
+      locale,
+      onStart: () => setIsSpeaking(true),
+      onEnd: () => setIsSpeaking(false),
+      onError: () => setIsSpeaking(false),
+    });
+
+    if (!started) {
+      setIsSpeaking(false);
     }
   };
 

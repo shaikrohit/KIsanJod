@@ -67,7 +67,7 @@ export default function PaymentsPage() {
       if (!stored) return;
       const f = JSON.parse(stored);
       fetch(`/api/bookings?farmerId=${f.id}`)
-        .then((r) => {
+        .then(async (r) => {
           if (!r.ok) throw new Error("Fetch failed");
           return r.json();
         })

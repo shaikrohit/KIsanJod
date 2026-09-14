@@ -162,8 +162,8 @@ export default function OperatorPage() {
     if (loggedIn && operator) {
       fetchQueue();
       fetchCentreSettings();
-      // Fast 1000ms backup heartbeat
-      const interval = setInterval(fetchQueue, 1000);
+      // Gentle 15-second safety heartbeat (SSE handles real-time instant sync)
+      const interval = setInterval(fetchQueue, 15000);
       return () => clearInterval(interval);
     }
   }, [loggedIn, operator, fetchQueue, fetchCentreSettings]);
