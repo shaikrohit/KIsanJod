@@ -87,6 +87,13 @@ async function verifyProduction() {
   for (const p of pages) {
     const res = await request(`${PROD}${p.path}`);
     assert(`${p.name} (${p.path}) returns HTTP 200`, res.status === 200, `Got HTTP ${res.status}`);
+
+    if (p.path === "/farmer/book") {
+      const hasEstimatedPayout = res.body.includes("Estimated MSP Payout");
+      const hasOfficialMspPrice = res.body.includes("Official MSP: ₹");
+      assert("/farmer/book does not contain 'Estimated MSP Payout'", !hasEstimatedPayout);
+      assert("/farmer/book does not contain 'Official MSP: ₹'", !hasOfficialMspPrice);
+    }
   }
 
   // --- SECTION 2: PRODUCTION STATIC ASSETS & PWA ---
