@@ -185,6 +185,21 @@ async function runSystemAudit() {
     const farmer = await db.farmer.findFirst({ where: { id: "farmer_001" } });
     if (!farmer) throw new Error("Farmer farmer_001 not found");
 
+    // Clear any lingering active bookings from previous test runs so farmer is within 3-slot limit and no same-day conflict
+    await db.booking.updateMany({
+      where: {
+        farmerId: farmer.id,
+        status: { in: ["WAITING", "CALLED", "AT_BAY", "STANDBY"] },
+      },
+      data: { status: "CANCELLED" },
+    });
+
+    // Reset farmer_001 Wheat utilized quota to 0.0 for clean test isolation
+    await db.landRecord.updateMany({
+      where: { farmerId: farmer.id, verifiedSownCrop: "Wheat" },
+      data: { utilizedQuotaQtl: 0.0 },
+    });
+
     const todayStr = new Date().toISOString().split("T")[0];
     const resBook = await request(`${BASE}/api/bookings`, {
       method: "POST",
@@ -201,6 +216,9 @@ async function runSystemAudit() {
       },
     });
 
+    if (resBook.status !== 200) {
+      console.error("  ❌ Booking API error response:", resBook.status, resBook.json);
+    }
     assert("Slot booking confirmed with HTTP 200", resBook.status === 200 && resBook.json?.success === true);
     createdBookingId = resBook.json?.booking?.id;
     createdTokenNumber = resBook.json?.booking?.tokenNumber;
@@ -269,6 +287,11 @@ async function runSystemAudit() {
     if (createdBookingId) {
       await db.booking.deleteMany({ where: { id: createdBookingId } });
     }
+    // Revert farmer_001 Wheat utilized quota back to clean state
+    await db.landRecord.updateMany({
+      where: { farmerId: farmer.id, verifiedSownCrop: "Wheat" },
+      data: { utilizedQuotaQtl: 0.0 },
+    });
   }
 
   // --- SECTION 5: DOCA EXECUTIVE TELEMETRY ANALYTICS ---
@@ -287,6 +310,7 @@ async function runSystemAudit() {
   console.log("\n[6] Testing Real-Time SSE Stream Endpoint...");
   {
     const sseInfo = await probeSSE(`${BASE}/api/sync/stream`);
+    console.log("    [DEBUG probeSSE output]:", sseInfo);
     assert("SSE Stream endpoint responds HTTP 200", sseInfo.status === 200);
     assert("SSE Stream Content-Type is text/event-stream", sseInfo.contentType.includes("text/event-stream"));
   }

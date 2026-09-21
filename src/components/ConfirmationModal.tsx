@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { AlertTriangle, HelpCircle, Volume2, X } from "lucide-react";
+import React, { useEffect } from "react";
+import { AlertTriangle, HelpCircle, X } from "lucide-react";
 import { ClientPortal } from "@/components/ClientPortal";
 
 export interface ConfirmationModalProps {
@@ -15,7 +15,6 @@ export interface ConfirmationModalProps {
   cancelText?: string;
   cancelLabel?: string;
   variant?: "danger" | "warning" | "default";
-  voiceText?: string;
   onConfirm: () => void | Promise<void>;
   onCancel: () => void;
 }
@@ -31,12 +30,9 @@ export function ConfirmationModal({
   cancelText,
   cancelLabel,
   variant = "warning",
-  voiceText,
   onConfirm,
   onCancel,
 }: ConfirmationModalProps) {
-  const [isSpeaking, setIsSpeaking] = useState(false);
-
   const resolvedDescription = message || description || "";
   const resolvedConfirm = confirmLabel || confirmText || "Yes, Proceed";
   const resolvedCancel = cancelLabel || cancelText || "No, Go Back";
@@ -52,22 +48,6 @@ export function ConfirmationModal({
   }, [isOpen, onCancel]);
 
   if (!isOpen) return null;
-
-  const handleSpeak = () => {
-    if (!window.speechSynthesis) return;
-    if (isSpeaking) {
-      window.speechSynthesis.cancel();
-      setIsSpeaking(false);
-      return;
-    }
-    const textToSpeak = voiceText || `${title}. ${resolvedDescription}. ${consequence || ""}`;
-    const utterance = new SpeechSynthesisUtterance(textToSpeak);
-    utterance.rate = 0.95;
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
-    setIsSpeaking(true);
-    window.speechSynthesis.speak(utterance);
-  };
 
   const confirmBtnColor =
     variant === "danger"
@@ -118,19 +98,6 @@ export function ConfirmationModal({
           </div>
 
           <div className="flex items-center gap-1">
-            {/* Audio Speech Assistance Button */}
-            <button
-              type="button"
-              onClick={handleSpeak}
-              title="Listen to this message"
-              className={`p-2 rounded-xl border transition-all ${
-                isSpeaking
-                  ? "bg-amber-500 text-white border-amber-600 animate-pulse"
-                  : "bg-white text-gray-700 hover:bg-gray-100 border-gray-300"
-              }`}
-            >
-              <Volume2 size={18} />
-            </button>
             <button
               type="button"
               onClick={onCancel}
@@ -178,12 +145,7 @@ export function ConfirmationModal({
           </button>
           <button
             type="button"
-            onClick={() => {
-              if (isSpeaking && window.speechSynthesis) {
-                window.speechSynthesis.cancel();
-              }
-              onConfirm();
-            }}
+            onClick={onConfirm}
             className={`w-full sm:w-auto px-6 py-3 rounded-xl font-black text-sm transition-all shadow-md active:scale-[0.98] ${confirmBtnColor}`}
           >
             {resolvedConfirm}

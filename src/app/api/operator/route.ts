@@ -77,6 +77,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, status: "STANDBY" });
     }
 
+    if (action === "resume_standby" || action === "call_token") {
+      if (!bookingId) return NextResponse.json({ error: "bookingId required" }, { status: 400 });
+
+      const updated = await db.booking.update({
+        where: { id: bookingId },
+        data: {
+          status: "CALLED",
+          queueEvents: {
+            create: {
+              eventType: "CALLED_FROM_STANDBY",
+              description: "Farmer recalled from standby to weighing bay",
+              triggeredBy: "OPERATOR",
+            },
+          },
+        },
+      });
+
+      notifySync({
+        type: "QUEUE_CALL",
+        centerId: updated.centerId,
+        tokenNumber: updated.tokenNumber,
+        farmerId: updated.farmerId,
+        bookingId: updated.id,
+      });
+
+      return NextResponse.json({ success: true, token: updated.tokenNumber, status: "CALLED" });
+    }
+
     if (action === "cancel") {
       if (!bookingId) return NextResponse.json({ error: "bookingId required" }, { status: 400 });
 
@@ -249,6 +277,31 @@ export async function POST(req: NextRequest) {
           amountInr: payout.netPayable,
         },
       });
+
+      // Update farmer seasonal land quota utilization
+      try {
+        const matchingLand =
+          (await db.landRecord.findFirst({
+            where: {
+              farmerId: booking.farmerId,
+              verifiedSownCrop: { equals: booking.cropName, mode: "insensitive" },
+            },
+          })) ||
+          (await db.landRecord.findFirst({
+            where: { farmerId: booking.farmerId },
+          }));
+
+        if (matchingLand) {
+          await db.landRecord.update({
+            where: { id: matchingLand.id },
+            data: {
+              utilizedQuotaQtl: matchingLand.utilizedQuotaQtl + netWeightQtl,
+            },
+          });
+        }
+      } catch (quotaErr) {
+        console.error("Error updating land quota upon weighment:", quotaErr);
+      }
 
       // Mark booking completed
       await db.booking.update({

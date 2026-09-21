@@ -52,6 +52,39 @@ export function useInstantSync(onSync: (msg?: SyncMessage) => void) {
   const trigger = useCallback((msg?: SyncMessage) => {
     try {
       onSyncRef.current(msg);
+      if (typeof window !== "undefined" && msg?.type) {
+        import("@/components/NotificationBell").then(({ triggerNativeNotification }) => {
+          if (msg.type === "QUEUE_CALL" || msg.type === "TURN_CALLED") {
+            triggerNativeNotification(
+              "Gate Call: Your Turn is Active!",
+              `Token ${msg.tokenNumber || ""} has been called to the weighing bay. Proceed immediately.`,
+              "turn",
+              "/farmer/queue"
+            );
+          } else if (msg.type === "QUEUE_STANDBY" || msg.type === "STANDBY") {
+            triggerNativeNotification(
+              "Token on Standby",
+              `Token ${msg.tokenNumber || ""} was placed on standby. Please report to the gate operator.`,
+              "standby",
+              "/farmer/queue"
+            );
+          } else if (msg.type === "WEIGHMENT_COMPLETED" || msg.type === "J_FORM_GENERATED") {
+            triggerNativeNotification(
+              "Procurement Recorded: J-Form Generated",
+              "Weighment has been recorded. Digital J-Form bill is generated and queued for DBT bank credit.",
+              "weighment",
+              "/farmer/payments"
+            );
+          } else if (msg.type === "BOOKING_CREATED") {
+            triggerNativeNotification(
+              "Mandi Slot Confirmed",
+              `Your token ${msg.tokenNumber || ""} has been scheduled successfully.`,
+              "general",
+              "/farmer/dashboard"
+            );
+          }
+        }).catch(() => {});
+      }
     } catch (e) {
       console.error("Sync callback error:", e);
     }

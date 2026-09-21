@@ -9,8 +9,11 @@ import {
   formatTimeRange12h,
   formatApproxTimeRange12h,
 } from "@/lib/timeFormat";
+import { ALL_PROCUREMENT_CENTRES, AVAILABLE_STATES, getCentresByState, type MockProcurementCentre } from "@/lib/mocks/procurementCentres";
 import {
   ArrowLeft,
+  AlertCircle,
+  AlertTriangle,
   Calendar,
   CheckCircle2,
   ChevronDown,
@@ -23,7 +26,10 @@ import {
   Sparkles,
   Truck,
   Users,
+  X,
 } from "lucide-react";
+import { ClientPortal } from "@/components/ClientPortal";
+import { useInstantSync } from "@/lib/useInstantSync";
 
 interface CropInfo {
   key: string;
@@ -224,32 +230,12 @@ interface SessionsPayload {
   afternoonSession: SessionInfo;
 }
 
-const FALLBACK_CENTRES: Centre[] = [
-  {
-    id: "center_lud_01",
-    name: "Ludhiana Central Grain Mandi",
-    district: "Ludhiana",
-    state: "Punjab",
-  },
-  {
-    id: "center_gnt_01",
-    name: "Guntur Agricultural Market Yard",
-    district: "Guntur",
-    state: "Andhra Pradesh",
-  },
-  {
-    id: "center_seh_01",
-    name: "Sehore Krishi Upaj Mandi",
-    district: "Sehore",
-    state: "Madhya Pradesh",
-  },
-  {
-    id: "center_nsk_01",
-    name: "Nashik Lasalgaon APMC Market",
-    district: "Nashik",
-    state: "Maharashtra",
-  },
-];
+const FALLBACK_CENTRES: Centre[] = ALL_PROCUREMENT_CENTRES.map(c => ({
+  id: c.id,
+  name: c.name,
+  district: c.district,
+  state: c.state,
+}));
 
 function BookingContent() {
   const router = useRouter();
@@ -293,6 +279,42 @@ function BookingContent() {
   } | null>(null);
   const [farmerId, setFarmerId] = useState("");
   const [toast, setToast] = useState("");
+  const [selectedState, setSelectedState] = useState<string>("");
+  const [centreSearch, setCentreSearch] = useState("");
+
+  const [noticeModal, setNoticeModal] = useState<{
+    isOpen: boolean;
+    errorType?: "QUOTA_EXCEEDED" | "ACTIVE_SLOT_LIMIT_EXCEEDED" | "SAME_DAY_CONFLICT" | "GENERAL_ERROR";
+    title: string;
+    message: string;
+    quotaDetails?: {
+      requestedQtl: number;
+      remainingQuotaQtl: number;
+      totalQuotaQtl: number;
+      activeBookedQtl: number;
+      isFullyUtilized: boolean;
+      maxAllowedPackages: number;
+    };
+    conflictDetails?: {
+      tokenNumber: string;
+      centreName: string;
+      date: string;
+      bookingId: string;
+    };
+    limitDetails?: {
+      activeBookingsCount: number;
+      maxAllowed: number;
+    };
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+  });
+
+  const [farmerQuota, setFarmerQuota] = useState<{
+    totalQuotaQtl: number;
+    cropSown?: string;
+  } | null>(null);
 
   const showToast = (message: string) => {
     setToast(message);
@@ -306,7 +328,30 @@ function BookingContent() {
       return;
     }
     setFarmerId(JSON.parse(stored).id);
+    try {
+      const parsed = JSON.parse(stored);
+      setFarmerId(parsed.id);
+      if (parsed.landRecords && parsed.landRecords[0]) {
+        setFarmerQuota({
+          totalQuotaQtl: parsed.landRecords[0].maxProcurementQuotaQtl || 100,
+          cropSown: parsed.landRecords[0].cropSown || parsed.landRecords[0].verifiedSownCrop,
+        });
+      }
+    } catch {}
   }, [router]);
+
+  // Default state from farmer's Aadhaar profile
+  useEffect(() => {
+    const stored = localStorage.getItem("kisanjod_farmer");
+    if (stored) {
+      try {
+        const farmer = JSON.parse(stored);
+        if (farmer.state && AVAILABLE_STATES.includes(farmer.state)) {
+          setSelectedState(farmer.state);
+        }
+      } catch {}
+    }
+  }, []);
 
   // Handle URL pre-selection (Direct Crop or Category Filter)
   useEffect(() => {
@@ -333,7 +378,9 @@ function BookingContent() {
 
   const fetchCentres = useCallback(() => {
     setLoadingCentres(true);
-    fetch("/api/centres")
+    const params = new URLSearchParams();
+    if (selectedState) params.set("state", selectedState);
+    fetch(`/api/centres?${params.toString()}`)
       .then((r) => r.json())
       .then((d) => {
         if (d.centres && d.centres.length > 0) {
@@ -350,11 +397,17 @@ function BookingContent() {
       })
       .catch((err) => console.error("Error loading centres:", err))
       .finally(() => setLoadingCentres(false));
-  }, [preSelectedCentreId]);
+  }, [preSelectedCentreId, selectedState]);
 
   useEffect(() => {
+    if (selectedState) {
+      const filtered = FALLBACK_CENTRES.filter(c => c.state === selectedState);
+      setCentres(filtered.length > 0 ? filtered : FALLBACK_CENTRES);
+    } else {
+      setCentres(FALLBACK_CENTRES);
+    }
     fetchCentres();
-  }, [fetchCentres]);
+  }, [selectedState, fetchCentres]);
 
   // Safety net: auto-recover centres and selection on Step 3
   useEffect(() => {
@@ -428,6 +481,26 @@ function BookingContent() {
     }
   }, [selectedCentre, selectedDate, selectedCrop, packageCount, capacityKg, activeWorkers]);
 
+  // Zero-delay instant sync over SSE and BroadcastChannel to refresh slots and centres
+  useInstantSync(() => {
+    fetchCentres();
+    if (selectedCentre && selectedDate && selectedCrop) {
+      const unitType = selectedCrop.packaging;
+      const url = `/api/centres/${selectedCentre.id}/slots?date=${selectedDate}&packageCount=${packageCount}&unitType=${unitType}&capacityKg=${capacityKg}&workers=${activeWorkers}`;
+      fetch(url)
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.dynamicSlots || d.slots) {
+            setSlots(d.dynamicSlots || d.slots);
+          }
+          if (d.baySchedules) {
+            setBaySchedules(d.baySchedules);
+          }
+        })
+        .catch(() => {});
+    }
+  });
+
   // Calculate handling duration and net weight using authoritative research formula
   const handlingResult: HandlingModelOutput = calculateHandlingDuration({
     packageCount,
@@ -486,10 +559,30 @@ function BookingContent() {
         setResult(data.booking);
         setStep(5);
       } else {
-        alert(data.error || t("bookingFailed"));
+        setNoticeModal({
+          isOpen: true,
+          errorType: data.errorType || "GENERAL_ERROR",
+          title:
+            data.errorType === "QUOTA_EXCEEDED"
+              ? "Seasonal Land Quota Limit"
+              : data.errorType === "ACTIVE_SLOT_LIMIT_EXCEEDED"
+              ? "Active Booking Limit (Max 3 Slots)"
+              : data.errorType === "SAME_DAY_CONFLICT"
+              ? "Mandi Scheduling Conflict"
+              : "Booking Notice",
+          message: data.error || t("bookingFailed") || "Could not complete booking",
+          quotaDetails: data.quotaDetails,
+          conflictDetails: data.conflictDetails,
+          limitDetails: data.details,
+        });
       }
     } catch {
-      alert(t("connectionError"));
+      setNoticeModal({
+        isOpen: true,
+        errorType: "GENERAL_ERROR",
+        title: "Connection Notice",
+        message: "Unable to reach the APMC procurement server. Please check your internet connection and try again.",
+      });
     }
     setLoading(false);
   };
@@ -647,8 +740,8 @@ function BookingContent() {
                       )}
                     </h3>
                     <div className="flex items-center justify-between mt-1 pt-1 border-t border-white/20 text-xs">
-                      <span className="text-amber-300 font-extrabold drop-shadow-sm">
-                        MSP: ₹{crop.msp}/Qtl
+                      <span className="text-emerald-300 font-extrabold drop-shadow-sm">
+                        {crop.category === "Vegetables" ? "Kharif / Year-round" : crop.key === "Paddy" ? "Kharif Season" : "Rabi Season"}
                       </span>
                       <span className="text-[11px] text-gray-200 font-semibold">
                         {crop.packagingBadge}
@@ -690,9 +783,39 @@ function BookingContent() {
               </h3>
               <p className="text-xs font-bold text-[#0f6b4d] mt-0.5">
                 Official MSP: ₹{selectedCrop.msp}/Quintals
+                {selectedCrop.category === "Vegetables" ? "Year-Round APMC Produce" : selectedCrop.key === "Paddy" ? "Kharif Seasonal Procurement" : "Rabi Seasonal Procurement"} • {selectedCrop.packagingBadge}
               </p>
             </div>
           </div>
+
+          {/* Live Verified Land Quota Status Badge */}
+          {farmerQuota && (
+            <div className="flex items-center justify-between p-3 rounded-2xl bg-emerald-50/90 border border-emerald-200 text-xs shadow-2xs">
+              <div className="flex items-center gap-2.5">
+                <span className="text-lg">🛡️</span>
+                <div>
+                  <span className="font-extrabold text-emerald-950 block">
+                    Verified Land Quota
+                  </span>
+                  <span className="text-[11px] text-emerald-800 font-medium">
+                    Maximum seasonal limit: {farmerQuota.totalQuotaQtl} Quintals
+                  </span>
+                </div>
+              </div>
+              <div className="text-right">
+                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800 block">
+                  Estimated Load
+                </span>
+                <strong className={`text-sm font-black ${
+                  ((packageCount * capacityKg) / 100) > farmerQuota.totalQuotaQtl
+                    ? "text-amber-700"
+                    : "text-emerald-900"
+                }`}>
+                  {((packageCount * capacityKg) / 100).toFixed(1)} Qtl
+                </strong>
+              </div>
+            </div>
+          )}
 
           {/* Number Stepper Control with Zero Collision (Requirement 6 & Screenshot) */}
           <div className="space-y-2">
@@ -946,10 +1069,54 @@ function BookingContent() {
             </h2>
           </div>
 
+          {/* State Filter Dropdown */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex-1">
+              <label className="block text-[10px] font-black uppercase tracking-wider text-gray-500 mb-1">
+                State / राज्य
+              </label>
+              <select
+                value={selectedState}
+                onChange={(e) => {
+                  setSelectedState(e.target.value);
+                  setSelectedCentre(null);
+                }}
+                className="w-full px-3 py-2.5 rounded-xl border border-gray-300 bg-white text-sm font-bold text-gray-900 focus:ring-2 focus:ring-emerald-400 focus:border-emerald-500"
+              >
+                <option value="">All States</option>
+                {AVAILABLE_STATES.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex-1">
+              <label className="block text-[10px] font-black uppercase tracking-wider text-gray-500 mb-1">
+                Search Centre
+              </label>
+              <input
+                type="text"
+                value={centreSearch}
+                onChange={(e) => setCentreSearch(e.target.value)}
+                placeholder="Search by name or district..."
+                className="w-full px-3 py-2.5 rounded-xl border border-gray-300 bg-white text-sm font-semibold text-gray-800 placeholder:text-gray-400 focus:ring-2 focus:ring-emerald-400 focus:border-emerald-500"
+              />
+            </div>
+          </div>
+
           {/* Procurement Centres List */}
-          <div className="space-y-2.5">
-            {centres.map((c) => (
-              <button
+          <div className="space-y-2.5 max-h-[340px] overflow-y-auto">
+            {centres
+              .filter((c) => {
+                if (!centreSearch) return true;
+                const q = centreSearch.toLowerCase();
+                return (
+                  c.name.toLowerCase().includes(q) ||
+                  c.district.toLowerCase().includes(q) ||
+                  (c.state && c.state.toLowerCase().includes(q))
+                );
+              })
+              .map((c) => (
+                <button
                 key={c.id}
                 type="button"
                 onClick={() => setSelectedCentre(c)}
@@ -1382,9 +1549,9 @@ function BookingContent() {
             </div>
 
             <div className="flex justify-between items-center border-t border-gray-100 pt-3 text-sm">
-              <span className="text-gray-600 font-extrabold">{t("totalEstimatedValue") || "Estimated MSP Value"}:</span>
+              <span className="text-gray-600 font-extrabold">{t("estHandlingTime") || "Est. Handling Duration"}:</span>
               <strong className="text-emerald-900 font-black text-lg font-heading">
-                ₹{(handlingResult.netWeightQuintals * selectedCrop.msp).toLocaleString("en-IN")}
+                ~{handlingResult.totalDurationMinutes} {t("minutes")}
               </strong>
             </div>
           </div>
@@ -1454,6 +1621,212 @@ function BookingContent() {
             {t("goToDashboard")} →
           </button>
         </div>
+      )}
+
+      {/* Custom Accessible KisanJod Booking Alert Modal (Replaces browser alert()) */}
+      {noticeModal.isOpen && (
+        <ClientPortal>
+          <div
+            className="fixed inset-0 z-[99998] flex items-center justify-center p-4 bg-black/65 backdrop-blur-xs animate-in fade-in duration-200"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="booking-modal-title"
+            aria-describedby="booking-modal-desc"
+          >
+            <div
+              className="relative z-[99999] w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-in zoom-in-95 duration-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Top Colored Bar */}
+              <div
+                className={`h-2.5 w-full ${
+                  noticeModal.errorType === "QUOTA_EXCEEDED"
+                    ? "bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600"
+                    : noticeModal.errorType === "ACTIVE_SLOT_LIMIT_EXCEEDED"
+                    ? "bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500"
+                    : noticeModal.errorType === "SAME_DAY_CONFLICT"
+                    ? "bg-gradient-to-r from-rose-500 via-red-600 to-amber-500"
+                    : "bg-gradient-to-r from-emerald-600 to-teal-600"
+                }`}
+              />
+
+              <div className="p-6 sm:p-7 space-y-5">
+                {/* Icon, Eyebrow & Close Button */}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`flex h-12 w-12 items-center justify-center rounded-2xl shadow-sm text-2xl ${
+                        noticeModal.errorType === "QUOTA_EXCEEDED"
+                          ? "bg-amber-100 text-amber-900 border border-amber-300"
+                          : noticeModal.errorType === "ACTIVE_SLOT_LIMIT_EXCEEDED"
+                          ? "bg-blue-100 text-blue-900 border border-blue-300"
+                          : noticeModal.errorType === "SAME_DAY_CONFLICT"
+                          ? "bg-rose-100 text-rose-900 border border-rose-300"
+                          : "bg-emerald-100 text-emerald-900 border border-emerald-300"
+                      }`}
+                    >
+                      {noticeModal.errorType === "QUOTA_EXCEEDED" ? (
+                        <Scale size={24} className="text-amber-800" />
+                      ) : noticeModal.errorType === "ACTIVE_SLOT_LIMIT_EXCEEDED" ? (
+                        <Calendar size={24} className="text-blue-800" />
+                      ) : noticeModal.errorType === "SAME_DAY_CONFLICT" ? (
+                        <MapPin size={24} className="text-rose-800" />
+                      ) : (
+                        <AlertCircle size={24} className="text-emerald-800" />
+                      )}
+                    </div>
+                    <div>
+                      <span
+                        className={`inline-block text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full ${
+                          noticeModal.errorType === "QUOTA_EXCEEDED"
+                            ? "bg-amber-100 text-amber-900"
+                            : noticeModal.errorType === "ACTIVE_SLOT_LIMIT_EXCEEDED"
+                            ? "bg-blue-100 text-blue-900"
+                            : noticeModal.errorType === "SAME_DAY_CONFLICT"
+                            ? "bg-rose-100 text-rose-900"
+                            : "bg-gray-100 text-gray-800"
+                        }`}
+                      >
+                        {noticeModal.errorType === "QUOTA_EXCEEDED"
+                          ? "Seasonal Land Quota Limit"
+                          : noticeModal.errorType === "ACTIVE_SLOT_LIMIT_EXCEEDED"
+                          ? "Active Slot Limit (Max 3)"
+                          : noticeModal.errorType === "SAME_DAY_CONFLICT"
+                          ? "Mandi Logistics Regulation"
+                          : "Booking Notice"}
+                      </span>
+                      <h3
+                        id="booking-modal-title"
+                        className="text-lg sm:text-xl font-black text-gray-900 font-heading mt-0.5"
+                      >
+                        {noticeModal.title}
+                      </h3>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setNoticeModal({ isOpen: false, title: "", message: "" })}
+                    className="p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                    aria-label="Close Notice"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                {/* Main Respectful Message */}
+                <p
+                  id="booking-modal-desc"
+                  className="text-xs sm:text-sm text-gray-700 leading-relaxed font-medium bg-gray-50/80 p-3.5 rounded-2xl border border-gray-200/80"
+                >
+                  {noticeModal.message}
+                </p>
+
+                {/* Visual Quota Metric Cards (when quotaDetails exists) */}
+                {noticeModal.quotaDetails && (
+                  <div className="space-y-2.5">
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200">
+                        <span className="text-[10px] font-black uppercase text-emerald-800 block">
+                          Total Quota
+                        </span>
+                        <strong className="text-sm sm:text-base font-black text-emerald-950">
+                          {noticeModal.quotaDetails.totalQuotaQtl.toFixed(1)} Qtl
+                        </strong>
+                      </div>
+
+                      <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200">
+                        <span className="text-[10px] font-black uppercase text-amber-800 block">
+                          Active Booked
+                        </span>
+                        <strong className="text-sm sm:text-base font-black text-amber-950">
+                          {noticeModal.quotaDetails.activeBookedQtl.toFixed(1)} Qtl
+                        </strong>
+                      </div>
+
+                      <div className={`p-3 rounded-2xl border ${
+                        noticeModal.quotaDetails.remainingQuotaQtl > 0
+                          ? "bg-blue-50 border-blue-200"
+                          : "bg-red-50 border-red-200"
+                      }`}>
+                        <span className={`text-[10px] font-black uppercase block ${
+                          noticeModal.quotaDetails.remainingQuotaQtl > 0 ? "text-blue-800" : "text-red-800"
+                        }`}>
+                          Available Now
+                        </span>
+                        <strong className={`text-sm sm:text-base font-black ${
+                          noticeModal.quotaDetails.remainingQuotaQtl > 0 ? "text-blue-950" : "text-red-950"
+                        }`}>
+                          {noticeModal.quotaDetails.remainingQuotaQtl.toFixed(1)} Qtl
+                        </strong>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Interactive Action Buttons */}
+                <div className="space-y-2 pt-2 border-t border-gray-100">
+                  {/* Option 1: 1-Tap Adjust to Remaining Quota (if positive remaining quota exists) */}
+                  {noticeModal.quotaDetails &&
+                    noticeModal.quotaDetails.remainingQuotaQtl > 0 &&
+                    noticeModal.quotaDetails.maxAllowedPackages > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newPkg = noticeModal.quotaDetails!.maxAllowedPackages;
+                          setPackageCount(newPkg);
+                          setNoticeModal({ isOpen: false, title: "", message: "" });
+                          showToast(`Adjusted quantity to ${newPkg} ${unitLabel} (${noticeModal.quotaDetails!.remainingQuotaQtl.toFixed(1)} Qtl)`);
+                        }}
+                        className="w-full py-3 px-4 rounded-2xl bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white font-extrabold text-xs sm:text-sm shadow-md transition-all active:scale-[0.99] flex items-center justify-center gap-2"
+                      >
+                        <span>⚡ Adjust to Remaining {noticeModal.quotaDetails.remainingQuotaQtl.toFixed(1)} Qtl ({noticeModal.quotaDetails.maxAllowedPackages} {unitLabel})</span>
+                      </button>
+                    )}
+
+                  {/* Option 2: For Same-Day Conflict, Button to Change Date */}
+                  {noticeModal.errorType === "SAME_DAY_CONFLICT" && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNoticeModal({ isOpen: false, title: "", message: "" });
+                        setStep(3);
+                      }}
+                      className="w-full py-3 px-4 rounded-2xl bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white font-extrabold text-xs sm:text-sm shadow-md transition-all active:scale-[0.99] flex items-center justify-center gap-2"
+                    >
+                      <span>📅 Select a Different Date</span>
+                    </button>
+                  )}
+
+                  {/* Option 3: View Active Tokens (if limit exceeded or quota exhausted) */}
+                  {(noticeModal.errorType === "ACTIVE_SLOT_LIMIT_EXCEEDED" ||
+                    (noticeModal.quotaDetails && noticeModal.quotaDetails.remainingQuotaQtl <= 0) ||
+                    noticeModal.errorType === "SAME_DAY_CONFLICT") && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNoticeModal({ isOpen: false, title: "", message: "" });
+                        router.push("/farmer/dashboard");
+                      }}
+                      className="w-full py-3 px-4 rounded-2xl bg-[#0d4f3c] hover:bg-[#12684f] active:bg-[#073628] text-white font-extrabold text-xs sm:text-sm shadow-md transition-all active:scale-[0.99] flex items-center justify-center gap-2"
+                    >
+                      <span>📋 View & Manage Active Tokens</span>
+                    </button>
+                  )}
+
+                  {/* Option 4: Close / Dismiss */}
+                  <button
+                    type="button"
+                    onClick={() => setNoticeModal({ isOpen: false, title: "", message: "" })}
+                    className="w-full py-2.5 px-4 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs transition-colors"
+                  >
+                    Dismiss Notice
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </ClientPortal>
       )}
     </div>
   );

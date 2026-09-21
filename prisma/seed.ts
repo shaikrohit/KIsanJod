@@ -7,95 +7,38 @@
 
 import { PrismaClient } from "@prisma/client";
 
+import { ALL_PROCUREMENT_CENTRES } from "../src/lib/mocks/procurementCentres";
+
 const prisma = new PrismaClient();
 
 // ----------------------------------------------------------------------------
 // 1. Static Master Data Definitions
 // ----------------------------------------------------------------------------
 
-export const PROCUREMENT_CENTERS_SEED = [
-  {
-    id: "center_lud_01",
-    centerCode: "MND-LUD-01",
-    name: "Ludhiana Central Grain Mandi",
-    state: "Punjab",
-    district: "Ludhiana",
-    address: "GT Road, Near Grain Market Gate 2, Ludhiana, Punjab 141001",
-    latitude: 30.9010,
-    longitude: 75.8573,
-    baysCount: 3,
-    activeWorkers: 4,
-    maxDailySlots: 45,
-    dailyCapacityQtl: 4500.0,
-    morningSessionStart: "09:00",
-    morningSessionEnd: "13:00",
-    afternoonSessionStart: "15:00",
-    afternoonSessionEnd: "17:00",
-    isActive: true,
-  },
-  {
-    id: "center_gnt_01",
-    centerCode: "MND-GNT-01",
-    name: "Guntur Agricultural Market Yard",
-    state: "Andhra Pradesh",
-    district: "Guntur",
-    address: "Market Yard Road, Collectorate Area, Guntur, Andhra Pradesh 522004",
-    latitude: 16.3067,
-    longitude: 80.4365,
-    baysCount: 2,
-    activeWorkers: 4,
-    maxDailySlots: 30,
-    dailyCapacityQtl: 3000.0,
-    morningSessionStart: "09:00",
-    morningSessionEnd: "13:00",
-    afternoonSessionStart: "15:00",
-    afternoonSessionEnd: "17:00",
-    isActive: true,
-  },
-  {
-    id: "center_seh_01",
-    centerCode: "MND-SEH-01",
-    name: "Sehore Krishi Upaj Mandi",
-    state: "Madhya Pradesh",
-    district: "Sehore",
-    address: "Mandi Campus, Bhopal-Indore Highway, Sehore, Madhya Pradesh 466001",
-    latitude: 23.2030,
-    longitude: 77.0844,
-    baysCount: 2,
-    activeWorkers: 4,
-    maxDailySlots: 30,
-    dailyCapacityQtl: 2800.0,
-    morningSessionStart: "09:00",
-    morningSessionEnd: "13:00",
-    afternoonSessionStart: "15:00",
-    afternoonSessionEnd: "17:00",
-    isActive: true,
-  },
-  {
-    id: "center_nsk_01",
-    centerCode: "MND-NSK-01",
-    name: "Nashik Lasalgaon APMC Market",
-    state: "Maharashtra",
-    district: "Nashik",
-    address: "Lasalgaon Station Road, Niphad, Nashik, Maharashtra 422306",
-    latitude: 20.1450,
-    longitude: 74.2340,
-    baysCount: 2,
-    activeWorkers: 4,
-    maxDailySlots: 30,
-    dailyCapacityQtl: 3500.0,
-    morningSessionStart: "09:00",
-    morningSessionEnd: "13:00",
-    afternoonSessionStart: "15:00",
-    afternoonSessionEnd: "17:00",
-    isActive: true,
-  },
-];
+export const PROCUREMENT_CENTERS_SEED = ALL_PROCUREMENT_CENTRES.map((c) => ({
+  id: c.id,
+  centerCode: c.id === "center_lud_01" ? "MND-LUD-01" : c.id.toUpperCase().replace("CENTER_", "MND-"),
+  name: c.name,
+  state: c.state,
+  district: c.district,
+  address: `${c.address}, ${c.state} ${c.pinCode}`,
+  latitude: c.lat,
+  longitude: c.lng,
+  baysCount: c.activeWorkers > 4 ? 3 : 2,
+  activeWorkers: c.activeWorkers,
+  maxDailySlots: Math.floor(c.maxDailyCapacity / 100),
+  dailyCapacityQtl: c.maxDailyCapacity,
+  morningSessionStart: c.morningSessionStart,
+  morningSessionEnd: c.morningSessionEnd,
+  afternoonSessionStart: c.afternoonSessionStart,
+  afternoonSessionEnd: c.afternoonSessionEnd,
+  isActive: c.isActive,
+}));
 
 export const OPERATORS_SEED = [
   {
     id: "op_lud_01",
-    centerCode: "MND-LUD-01",
+    centerCode: "MND-PB_01",
     employeeId: "EMP-LUD-001",
     fullName: "Harpreet Sharma",
     pinCode: "1234",
@@ -105,7 +48,7 @@ export const OPERATORS_SEED = [
   },
   {
     id: "op_gnt_01",
-    centerCode: "MND-GNT-01",
+    centerCode: "MND-AP_01",
     employeeId: "EMP-GNT-001",
     fullName: "K. Srinivasa Rao",
     pinCode: "1234",
@@ -115,7 +58,7 @@ export const OPERATORS_SEED = [
   },
   {
     id: "op_seh_01",
-    centerCode: "MND-SEH-01",
+    centerCode: "MND-MP_01",
     employeeId: "EMP-SEH-001",
     fullName: "Dharmendra Verma",
     pinCode: "1234",
@@ -125,11 +68,51 @@ export const OPERATORS_SEED = [
   },
   {
     id: "op_nsk_01",
-    centerCode: "MND-NSK-01",
+    centerCode: "MND-MH_01",
     employeeId: "EMP-NSK-001",
     fullName: "Ashok Deshmukh",
     pinCode: "1234",
     phoneNumber: "9822066554",
+    role: "OPERATOR",
+    isActive: true,
+  },
+  {
+    id: "op_krn_01",
+    centerCode: "MND-HR_01",
+    employeeId: "EMP-KRN-001",
+    fullName: "Surinder Malik",
+    pinCode: "1234",
+    phoneNumber: "9416099112",
+    role: "OPERATOR",
+    isActive: true,
+  },
+  {
+    id: "op_wrg_01",
+    centerCode: "MND-TS_01",
+    employeeId: "EMP-WRG-001",
+    fullName: "T. Ramesh",
+    pinCode: "1234",
+    phoneNumber: "9949011223",
+    role: "OPERATOR",
+    isActive: true,
+  },
+  {
+    id: "op_var_01",
+    centerCode: "MND-UP_03",
+    employeeId: "EMP-VAR-001",
+    fullName: "Akhilesh Pandey",
+    pinCode: "1234",
+    phoneNumber: "9450099445",
+    role: "OPERATOR",
+    isActive: true,
+  },
+  {
+    id: "op_agr_01",
+    centerCode: "MND-UP_04",
+    employeeId: "EMP-AGR-001",
+    fullName: "Rajeev Kushwaha",
+    pinCode: "1234",
+    phoneNumber: "9837099556",
     role: "OPERATOR",
     isActive: true,
   },
@@ -511,6 +494,10 @@ async function main() {
     });
   }
   console.log(`✅ Seeded ${FARMER_PERSONAS_SEED.length} Farmer Personas.`);
+  
+  // Phase D2: Seed Secondary Multi-Crop Land Holdings
+  const { seedSecondaryLand } = await import("../scripts/seed_secondary_land");
+  await seedSecondaryLand();
 
   // Phase E: Seed Hourly Slot Capacities for Today and Tomorrow
   console.log("⏱️ Seeding Hourly Slot Capacities for Mandi Bays (08:00 - 17:00)...");
@@ -550,7 +537,7 @@ async function main() {
 
   // Phase F: Seed Sample Initial Queue State (Live Verification Fixtures)
   console.log("🎯 Seeding Initial Live Verification Fixtures (Completed Bill & Active Queue)...");
-  const ludhianaCenterId = centerIdMap["MND-LUD-01"];
+  const ludhianaCenterId = centerIdMap["MND-PB_01"];
   const ludhianaOperator = await prisma.operator.findUnique({
     where: { employeeId: "EMP-LUD-001" },
   });

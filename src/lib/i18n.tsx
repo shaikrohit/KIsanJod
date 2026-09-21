@@ -18,8 +18,6 @@ export const translations: Record<Locale, Record<string, string>> = {
     online: "Online",
     offline: "Offline",
     language: "Language",
-    listenPage: "Listen Screen",
-    stopListening: "Stop Audio",
 
     // Roles
     roleFarmer: "Farmer",
@@ -149,7 +147,6 @@ export const translations: Record<Locale, Record<string, string>> = {
     standbyTitle: "Token on Standby",
     standbyDesc: "You were placed on standby due to arrival grace period. Report to desk upon arrival.",
     mandiLineup: "Today's Mandi Lineup",
-    tapToSpeak: "Tap to Listen",
 
     // Payments
     paymentsTitle: "Procurement & DBT Payments",
@@ -242,12 +239,9 @@ export const translations: Record<Locale, Record<string, string>> = {
     capacity50Selected: "50 kg capacity selected",
     capacity25Selected: "25 kg capacity selected",
     customCapacitySelected: "Custom capacity selected",
-    unsupportedSpeech: "Speech synthesis is not supported in this browser.",
     farmerPortal: "Farmer Portal",
     operatorPortal: "Mandi Staff Portal",
     adminPortal: "DoCA Executive Dashboard",
-    turnCalledSpeech: "Your turn is called. Please proceed immediately to the procurement counter.",
-    turnNearingSpeech: "Ahead farmer processing is completing. Your turn will be in approximately 10 minutes. Please arrive at the holding area.",
   },
   hi: {
     // Brand & Header
@@ -256,8 +250,6 @@ export const translations: Record<Locale, Record<string, string>> = {
     online: "ऑनलाइन",
     offline: "ऑफ़लाइन",
     language: "भाषा",
-    listenPage: "स्क्रीन सुनें",
-    stopListening: "ऑडियो रोकें",
 
     // Roles
     roleFarmer: "किसान",
@@ -387,7 +379,6 @@ export const translations: Record<Locale, Record<string, string>> = {
     standbyTitle: "टोकन स्टैंडबाई पर",
     standbyDesc: "देरी के कारण टोकन स्टैंडबाई पर है। केंद्र पहुंचकर ऑपरेटर से संपर्क करें।",
     mandiLineup: "आज की मंडी कतार",
-    tapToSpeak: "सुनने के लिए दबाएं",
 
     // Payments
     paymentsTitle: "खरीद एवं DBT भुगतान",
@@ -480,12 +471,9 @@ export const translations: Record<Locale, Record<string, string>> = {
     capacity50Selected: "50 कि.ग्रा. क्षमता चुनी गई",
     capacity25Selected: "25 कि.ग्रा. क्षमता चुनी गई",
     customCapacitySelected: "कस्टम क्षमता चुनी गई",
-    unsupportedSpeech: "इस ब्राउज़र में बोलकर सुनाने की सुविधा उपलब्ध नहीं है।",
     farmerPortal: "किसान पोर्टल",
     operatorPortal: "मंडी स्टाफ पोर्टल",
     adminPortal: "DoCA कार्यकारी डैशबोर्ड",
-    turnCalledSpeech: "आपकी बारी आ गई है। कृपया तुरंत खरीद काउंटर पर जाएं।",
-    turnNearingSpeech: "आगे वाले किसान की प्रक्रिया पूरी हो रही है। लगभग 10 मिनट में आपकी बारी होगी। कृपया होल्डिंग क्षेत्र में पहुंचें।",
   },
   te: {
     // Brand & Header
@@ -494,8 +482,6 @@ export const translations: Record<Locale, Record<string, string>> = {
     online: "ఆన్‌లైన్",
     offline: "ఆఫ్‌లైన్",
     language: "భాష",
-    listenPage: "పేజీ వినండి",
-    stopListening: "ఆడియో ఆపండి",
 
     // Roles
     roleFarmer: "రైతు",
@@ -625,7 +611,6 @@ export const translations: Record<Locale, Record<string, string>> = {
     standbyTitle: "టోకెన్ స్టాండ్‌బైలో ఉంది",
     standbyDesc: "ఆలస్యం కారణంగా స్టాండ్‌బైలో పెట్టబడింది. కేంద్రానికి చేరుకున్నాక ఆపరేటర్‌ను కలవండి.",
     mandiLineup: "నేటి మండీ క్యూ",
-    tapToSpeak: "వినడానికి నొక్కండి",
 
     // Payments
     paymentsTitle: "సేకరణ మరియు DBT చెల్లింపులు",
@@ -718,12 +703,9 @@ export const translations: Record<Locale, Record<string, string>> = {
     capacity50Selected: "50 కి.గ్రా. సామర్థ్యం ఎంచుకోబడింది",
     capacity25Selected: "25 కి.గ్రా. సామర్థ్యం ఎంచుకోబడింది",
     customCapacitySelected: "కస్టమ్ సామర్థ్యం ఎంచుకోబడింది",
-    unsupportedSpeech: "ఈ బ్రౌజర్‌లో మాటల ద్వారా వినిపించే సదుపాయం లేదు.",
     farmerPortal: "రైతు పోర్టల్",
     operatorPortal: "మండీ సిబ్బంది పోర్టల్",
     adminPortal: "DoCA ఎగ్జిక్యూటివ్ డాష్‌బోర్డ్",
-    turnCalledSpeech: "మీ వంతు వచ్చింది. దయచేసి వెంటనే కొనుగోలు కౌంటర్‌కు వెళ్లండి.",
-    turnNearingSpeech: "ముందున్న రైతు ప్రక్రియ పూర్తవుతోంది. సుమారు 10 నిమిషాల్లో మీ వంతు వస్తుంది. దయచేసి హోల్డింగ్ ప్రాంతానికి చేరుకోండి.",
   },
 };
 

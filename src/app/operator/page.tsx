@@ -42,6 +42,9 @@ export default function OperatorPage() {
   const [empId, setEmpId] = useState("EMP-LUD-001");
   const [pin, setPin] = useState("1234");
   const [showPin, setShowPin] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split("T")[0]);
+  const [registrationDrawerOpen, setRegistrationDrawerOpen] = useState(false);
+  const [registrationSearch, setRegistrationSearch] = useState("");
   const [allCentres, setAllCentres] = useState<Array<{ id: string; name: string; centerCode?: string; district: string }>>([]);
   const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
   const [confirmStandbyId, setConfirmStandbyId] = useState<string | null>(null);
@@ -63,6 +66,7 @@ export default function OperatorPage() {
     null
   );
   const [waitingQueue, setWaitingQueue] = useState<QueueItem[]>([]);
+  const [standbyQueue, setStandbyQueue] = useState<QueueItem[]>([]);
   const [completedCount, setCompletedCount] = useState(0);
   const [totalBooked, setTotalBooked] = useState(0);
 
@@ -83,16 +87,17 @@ export default function OperatorPage() {
   const fetchQueue = useCallback(async () => {
     if (!operator) return;
     try {
-      const res = await fetch(`/api/queue/${operator.center.id}`);
+      const res = await fetch(`/api/queue/${operator.center.id}?date=${selectedDate}`);
       const data = await res.json();
       setCurrentlyServing(data.currentlyServing);
       setWaitingQueue(data.waitingQueue || []);
+      setStandbyQueue(data.standbyQueue || []);
       setCompletedCount(data.completedCount || 0);
       setTotalBooked(data.totalBooked || 0);
     } catch {
       /* silent */
     }
-  }, [operator]);
+  }, [operator, selectedDate]);
 
   const fetchCentreSettings = useCallback(async () => {
     if (!operator) return;
@@ -136,7 +141,7 @@ export default function OperatorPage() {
         setIsEditingSessions(false);
       }
     } catch {
-      alert("Failed to update operating hours");
+      setError("Failed to update operating hours");
     }
     setSavingSessions(false);
   };
@@ -251,6 +256,25 @@ export default function OperatorPage() {
     broadcastSync();
   };
 
+  const resumeStandby = async (bookingId: string) => {
+    try {
+      const res = await fetch("/api/operator", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "resume_standby", bookingId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchQueue();
+        broadcastSync();
+      } else {
+        setError(data.error || "Failed to recall token from standby");
+      }
+    } catch {
+      setError("Failed to recall token from standby");
+    }
+  };
+
   const cancelToken = async (bookingId: string) => {
     await fetch("/api/operator", {
       method: "POST",
@@ -299,10 +323,10 @@ export default function OperatorPage() {
         fetchQueue();
         broadcastSync();
       } else {
-        alert(data.error || "Processing failed");
+        setError(data.error || "Processing failed");
       }
     } catch {
-      alert("Error");
+      setError("Weighment submission error. Please check values and try again.");
     }
     setLoading(false);
   };
@@ -347,15 +371,6 @@ export default function OperatorPage() {
               <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
                 {t("pin")}
               </label>
-              <input
-                type="password"
-                maxLength={4}
-                value={pin}
-                onChange={(e) => setPin(e.target.value)}
-                placeholder="1234"
-                className="w-full px-4 py-3.5 text-xl font-bold text-center tracking-[0.4em] border-2 border-blue-200 rounded-2xl focus:border-blue-600 focus:outline-none"
-                required
-              />
               <div className="relative">
                 <input
                   type={showPin ? "text" : "password"}
@@ -596,6 +611,17 @@ export default function OperatorPage() {
         )}
       </div>
 
+      {/* Date Picker */}
+      <div className="flex items-center gap-3 mt-3">
+        <label className="text-[10px] font-black uppercase tracking-wider text-gray-500">Date:</label>
+        <input
+          type="date"
+          value={selectedDate}
+          onChange={(e) => setSelectedDate(e.target.value)}
+          className="px-3 py-2 rounded-xl border border-gray-300 bg-white text-sm font-bold text-gray-900 focus:ring-2 focus:ring-emerald-400"
+        />
+      </div>
+
       {/* Mandi Operating Sessions Configuration Card */}
       <div className="glass-card p-4 space-y-3 border-l-4 border-blue-600">
         <div className="flex items-center justify-between">
@@ -739,7 +765,61 @@ export default function OperatorPage() {
         </div>
       </div>
 
-      {/* Now Serving Bay Card */}
+      {/* Daily Registrations Register Toggle */}
+      <button
+        type="button"
+        onClick={() => setRegistrationDrawerOpen(!registrationDrawerOpen)}
+        className="w-full flex items-center justify-between p-3 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-sm font-bold text-gray-800 transition-all"
+      >
+        <span>📋 Daily Registrations Register ({selectedDate})</span>
+        <span className={`transition-transform ${registrationDrawerOpen ? "rotate-180" : ""}`}>▼</span>
+      </button>
+
+      {registrationDrawerOpen && (
+        <div className="border border-gray-200 rounded-2xl bg-white p-4 space-y-3 animate-in slide-in-from-top duration-200">
+          {/* Search */}
+          <input
+            type="text"
+            value={registrationSearch}
+            onChange={(e) => setRegistrationSearch(e.target.value)}
+            placeholder="Search by Token or Farmer Name..."
+            className="w-full px-3 py-2 rounded-xl border border-gray-300 text-sm font-semibold placeholder:text-gray-400 focus:ring-2 focus:ring-emerald-400"
+          />
+          {/* Registration List */}
+          <div className="max-h-[400px] overflow-y-auto space-y-2">
+            {[...(waitingQueue || []), ...(currentlyServing ? [currentlyServing] : [])]
+              .filter((b) => {
+                if (!registrationSearch) return true;
+                const q = registrationSearch.toLowerCase();
+                return (
+                  b.tokenNumber?.toLowerCase().includes(q) ||
+                  b.farmerName?.toLowerCase().includes(q)
+                );
+              })
+              .sort((a, b) => (a.tokenNumber || "").localeCompare(b.tokenNumber || ""))
+              .map((b) => (
+                <div key={b.id} className="flex items-center justify-between p-3 rounded-xl border border-gray-100 bg-gray-50 text-xs">
+                  <div>
+                    <span className="font-black text-gray-900">{b.tokenNumber}</span>
+                    <span className="mx-2 text-gray-400">•</span>
+                    <span className="font-bold text-gray-700">{b.farmerName || "Farmer"}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-500 font-semibold">{b.cropName || "—"}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                      !("status" in b) || b.status === "WAITING" ? "bg-gray-100 text-gray-700" :
+                      b.status === "CALLED" || b.status === "AT_BAY" ? "bg-green-100 text-green-800" :
+                      b.status === "STANDBY" ? "bg-amber-100 text-amber-800" :
+                      b.status === "COMPLETED" ? "bg-blue-100 text-blue-800" :
+                      "bg-gray-100 text-gray-700"
+                    }`}>{!("status" in b) ? "WAITING" : b.status}</span>
+                  </div>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+
       {/* Now Serving Card */}
       {currentlyServing && (
         <div className="glass-card p-4 border-2 border-blue-400 bg-blue-50/90 space-y-3">
@@ -857,6 +937,67 @@ export default function OperatorPage() {
           </div>
         )}
       </div>
+
+      {/* Standby Queue List */}
+      {standbyQueue.length > 0 && (
+        <div className="glass-card p-4 space-y-3 border border-amber-300/80 bg-amber-50/40">
+          <div className="flex items-center justify-between border-b border-amber-200/80 pb-2">
+            <h3 className="text-sm font-bold text-amber-900 font-heading flex items-center gap-1.5">
+              <span>⏸️</span>
+              <span>Standby Queue ({standbyQueue.length})</span>
+            </h3>
+            <span className="text-[10px] font-black uppercase tracking-wider bg-amber-200/70 text-amber-900 px-2 py-0.5 rounded-full">
+              Farmers on Hold
+            </span>
+          </div>
+
+          <div className="space-y-2">
+            {standbyQueue.map((item) => (
+              <div
+                key={item.id}
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-xl bg-white/90 border border-amber-200 text-xs shadow-xs"
+              >
+                <div className="flex-1">
+                  <p className="font-extrabold text-gray-900 text-sm">
+                    {item.tokenNumber} — {item.farmerName}
+                  </p>
+                  <p className="text-[11px] text-amber-800 font-medium mt-0.5">
+                    Mandi gate arrival pending / standby
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => resumeStandby(item.id)}
+                    className="px-3 py-1.5 bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-800 hover:to-indigo-800 text-white rounded-lg font-bold shadow-xs"
+                  >
+                    📢 Call to Bay
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProcessing(item);
+                      setGrossWeight("");
+                      setTareWeight("");
+                    }}
+                    className="px-2.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-bold shadow-xs"
+                  >
+                    Weigh
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmCancelId(item.id)}
+                    className="px-2.5 py-1.5 bg-red-100 hover:bg-red-200 text-red-800 rounded-lg font-bold border border-red-300"
+                  >
+                    ✕ Cancel
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Personalized Confirmation Modals */}
 

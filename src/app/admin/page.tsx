@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useLanguage } from "@/lib/i18n";
 import { to12Hour } from "@/lib/timeFormat";
 import { Eye, EyeOff } from "lucide-react";
+import { useInstantSync } from "@/lib/useInstantSync";
 
 interface Stats {
   overview: {
@@ -59,6 +60,7 @@ export default function AdminDashboard() {
   const [aftEnd, setAftEnd] = useState("17:00");
   const [savingCentre, setSavingCentre] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState("");
+  const [adminError, setAdminError] = useState("");
 
   useEffect(() => {
     try {
@@ -71,6 +73,7 @@ export default function AdminDashboard() {
   const handleLogin = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (adminUser === "admin" && adminPass === "admin123") {
+      setAdminError("");
       localStorage.removeItem("kisanjod_farmer");
       localStorage.removeItem("kisanjod_operator");
       sessionStorage.setItem("kisanjod_admin", "true");
@@ -78,7 +81,7 @@ export default function AdminDashboard() {
       window.dispatchEvent(new Event("kisanjod_auth_change"));
       setLoggedIn(true);
     } else {
-      alert(t("invalidAdmin"));
+      setAdminError(t("invalidAdmin") || "Invalid admin credentials");
     }
   };
 
@@ -131,7 +134,6 @@ export default function AdminDashboard() {
       });
       const data = await res.json();
       if (data.success) {
-        setSaveSuccessMsg("Mandi session timings updated successfully!");
         setSaveSuccessMsg("Mandi session settings updated successfully!");
         setTimeout(() => setSaveSuccessMsg(""), 3500);
         // Update local list
@@ -151,15 +153,13 @@ export default function AdminDashboard() {
         );
       }
     } catch {
-      alert("Failed to update centre timings");
+      setSaveSuccessMsg("Failed to update centre timings");
+      setTimeout(() => setSaveSuccessMsg(""), 3500);
     }
     setSavingCentre(false);
   };
 
-  useEffect(() => {
-    if (!loggedIn) return;
-    setLoading(true);
-    fetchCentres();
+  const fetchStats = useCallback(() => {
     fetch("/api/admin/stats")
       .then((r) => r.json())
       .then((d) => {
@@ -167,7 +167,22 @@ export default function AdminDashboard() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [loggedIn, fetchCentres]);
+  }, []);
+
+  // Zero-delay instant telemetry sync over SSE
+  useInstantSync(() => {
+    if (loggedIn) {
+      fetchStats();
+      fetchCentres();
+    }
+  });
+
+  useEffect(() => {
+    if (!loggedIn) return;
+    setLoading(true);
+    fetchCentres();
+    fetchStats();
+  }, [loggedIn, fetchCentres, fetchStats]);
 
   if (!loggedIn) {
     return (
@@ -192,14 +207,6 @@ export default function AdminDashboard() {
               className="w-full px-4 py-3.5 text-base font-semibold border-2 border-purple-200 rounded-2xl focus:border-purple-600 focus:outline-none"
               required
             />
-            <input
-              type="password"
-              value={adminPass}
-              onChange={(e) => setAdminPass(e.target.value)}
-              placeholder={t("password")}
-              className="w-full px-4 py-3.5 text-base font-semibold border-2 border-purple-200 rounded-2xl focus:border-purple-600 focus:outline-none"
-              required
-            />
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
@@ -221,6 +228,11 @@ export default function AdminDashboard() {
             <p className="text-xs text-purple-700 bg-purple-50 p-2 rounded-xl text-center font-medium border border-purple-200">
               💡 Demo: admin / admin123
             </p>
+            {adminError && (
+              <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl font-bold text-center">
+                {adminError}
+              </div>
+            )}
             <button
               type="submit"
               className="btn-touch w-full bg-purple-700 hover:bg-purple-800 text-white shadow-lg"

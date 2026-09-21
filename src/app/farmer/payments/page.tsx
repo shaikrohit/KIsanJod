@@ -152,7 +152,7 @@ export default function PaymentsPage() {
                   {b.tokenNumber} &nbsp;•&nbsp; {b.cropName}
                 </p>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  🏢 {b.center.name} ({b.bookedDate})
+                  🏢 {b.center?.name || "Mandi Yard"} ({b.bookedDate})
                 </p>
               </div>
 

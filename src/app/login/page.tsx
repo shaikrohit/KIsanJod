@@ -270,13 +270,58 @@ function LoginContent() {
                       🪪
                     </span>
                   </div>
-                  <p className="mt-2 text-[11px] text-gray-500 leading-relaxed">
-                    💡 <strong>Test Mode Active:</strong> Enter any 12-digit Aadhaar! 
-                    <br />
-                    • 1st digit <strong>1</strong> = Farmer 1 (Gurpreet) | <strong>2</strong> = Farmer 2 (Venkata) | <strong>3</strong> = Farmer 3 (Ramesh)
-                    <br />
-                    • Any other starting digit (0, 4–9) = <strong>Invalid Aadhaar</strong>
-                  </p>
+                  <div className="mt-3 pt-3 border-t border-emerald-100">
+                    <p className="text-[11px] font-black uppercase tracking-wider text-emerald-800 mb-2">
+                      ⚡ Quick Login Personas
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAadhaar("1234 5678 9012");
+                          setError("");
+                        }}
+                        className={`p-2.5 rounded-xl text-left border transition-all text-xs ${
+                          aadhaar.replace(/\s/g, "") === "123456789012"
+                            ? "bg-emerald-100/90 text-emerald-950 border-emerald-500 font-black shadow-xs"
+                            : "border-emerald-200/80 bg-emerald-50/50 hover:bg-emerald-100/70"
+                        }`}
+                      >
+                        <span className="font-extrabold text-emerald-950 block">🌾 Gurpreet Singh</span>
+                        <span className="text-[10px] text-emerald-700 font-mono">1234 5678 9012 • Ludhiana</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAadhaar("2345 6789 0123");
+                          setError("");
+                        }}
+                        className={`p-2.5 rounded-xl text-left border transition-all text-xs ${
+                          aadhaar.replace(/\s/g, "") === "234567890123"
+                            ? "bg-emerald-100/90 text-emerald-950 border-emerald-500 font-black shadow-xs"
+                            : "border-emerald-200/80 bg-emerald-50/50 hover:bg-emerald-100/70"
+                        }`}
+                      >
+                        <span className="font-extrabold text-emerald-950 block">🌾 Venkata Ramana</span>
+                        <span className="text-[10px] text-emerald-700 font-mono">2345 6789 0123 • Guntur</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAadhaar("3456 7890 1234");
+                          setError("");
+                        }}
+                        className={`p-2.5 rounded-xl text-left border transition-all text-xs ${
+                          aadhaar.replace(/\s/g, "") === "345678901234"
+                            ? "bg-emerald-100/90 text-emerald-950 border-emerald-500 font-black shadow-xs"
+                            : "border-emerald-200/80 bg-emerald-50/50 hover:bg-emerald-100/70"
+                        }`}
+                      >
+                        <span className="font-extrabold text-emerald-950 block">🌾 Ramesh Patel</span>
+                        <span className="text-[10px] text-emerald-700 font-mono">3456 7890 1234 • Sehore</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
                 <button
@@ -518,6 +563,70 @@ function LoginContent() {
                       >
                         🧅 Nashik Market
                         <span className="block text-[10px] text-gray-500 font-mono">EMP-NSK-001</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEmpId("EMP-KRN-001");
+                          setPin("1234");
+                          setError("");
+                        }}
+                        className={`p-2 rounded-xl text-[11px] font-bold border transition-all text-left ${
+                          empId === "EMP-KRN-001"
+                            ? "bg-blue-100/80 text-blue-900 border-blue-400 font-black shadow-xs"
+                            : "bg-blue-50/50 text-blue-800 border-blue-200 hover:bg-blue-50"
+                        }`}
+                      >
+                        🌾 Karnal Mandi
+                        <span className="block text-[10px] text-gray-500 font-mono">EMP-KRN-001</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEmpId("EMP-WRG-001");
+                          setPin("1234");
+                          setError("");
+                        }}
+                        className={`p-2 rounded-xl text-[11px] font-bold border transition-all text-left ${
+                          empId === "EMP-WRG-001"
+                            ? "bg-blue-100/80 text-blue-900 border-blue-400 font-black shadow-xs"
+                            : "bg-blue-50/50 text-blue-800 border-blue-200 hover:bg-blue-50"
+                        }`}
+                      >
+                        🌱 Warangal Yard
+                        <span className="block text-[10px] text-gray-500 font-mono">EMP-WRG-001</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEmpId("EMP-VAR-001");
+                          setPin("1234");
+                          setError("");
+                        }}
+                        className={`p-2 rounded-xl text-[11px] font-bold border transition-all text-left ${
+                          empId === "EMP-VAR-001"
+                            ? "bg-blue-100/80 text-blue-900 border-blue-400 font-black shadow-xs"
+                            : "bg-blue-50/50 text-blue-800 border-blue-200 hover:bg-blue-50"
+                        }`}
+                      >
+                        🍅 Varanasi Mandi
+                        <span className="block text-[10px] text-gray-500 font-mono">EMP-VAR-001</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEmpId("EMP-AGR-001");
+                          setPin("1234");
+                          setError("");
+                        }}
+                        className={`p-2 rounded-xl text-[11px] font-bold border transition-all text-left ${
+                          empId === "EMP-AGR-001"
+                            ? "bg-blue-100/80 text-blue-900 border-blue-400 font-black shadow-xs"
+                            : "bg-blue-50/50 text-blue-800 border-blue-200 hover:bg-blue-50"
+                        }`}
+                      >
+                        🥔 Agra Mandi
+                        <span className="block text-[10px] text-gray-500 font-mono">EMP-AGR-001</span>
                       </button>
                     </div>
                   </div>

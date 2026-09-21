@@ -8,10 +8,13 @@ export async function GET(
 ) {
   try {
     const { centreId } = await params;
-    const today = new Date().toISOString().split("T")[0];
+    
+    const { searchParams } = new URL(req.url);
+    const dateParam = searchParams.get("date");
+    const targetDate = dateParam || new Date().toISOString().split("T")[0];
 
     const bookings = await db.booking.findMany({
-      where: { centerId: centreId, bookedDate: today },
+      where: { centerId: centreId, bookedDate: targetDate },
       include: { farmer: { select: { fullName: true, maskedAadhaar: true } } },
       orderBy: { tokenNumber: "asc" },
     });
@@ -23,7 +26,7 @@ export async function GET(
 
     return NextResponse.json({
       centreId,
-      date: today,
+      date: targetDate,
       currentlyServing: currentlyServing
         ? {
             id: currentlyServing.id,

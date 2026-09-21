@@ -185,6 +185,7 @@ export function PwaInstallPrompt({ showHeaderButton = false }: { showHeaderButto
  */
 export function PwaInstallDrawerAction() {
   const [isInstalled, setIsInstalled] = useState(false);
+  const [showManualTip, setShowManualTip] = useState(false);
 
   useEffect(() => {
     const checkStatus = () => {
@@ -215,7 +216,7 @@ export function PwaInstallDrawerAction() {
       }
       globalDeferredPrompt = null;
     } else {
-      alert("To install KisanJod: tap your browser's menu (⋮ or Share) and select 'Add to Home Screen' or 'Install App'.");
+      setShowManualTip((prev) => !prev);
     }
   };
 
@@ -234,23 +235,38 @@ export function PwaInstallDrawerAction() {
   }
 
   return (
-    <button
-      type="button"
-      onClick={handleInstallClick}
-      className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-[#edf5ef] hover:bg-[#d8ebd9] border border-[#cfded5] transition-all group shadow-2xs active:scale-[0.99]"
-    >
-      <div className="flex items-center gap-3 min-w-0">
-        <div className="w-9 h-9 rounded-xl bg-emerald-700 text-white flex items-center justify-center font-bold shadow-xs group-hover:scale-105 transition-transform shrink-0">
-          <Download size={16} />
+    <div className="space-y-2">
+      <button
+        type="button"
+        onClick={handleInstallClick}
+        className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-[#edf5ef] hover:bg-[#d8ebd9] border border-[#cfded5] transition-all group shadow-2xs active:scale-[0.99]"
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-9 h-9 rounded-xl bg-emerald-700 text-white flex items-center justify-center font-bold shadow-xs group-hover:scale-105 transition-transform shrink-0">
+            <Download size={16} />
+          </div>
+          <div className="text-left min-w-0">
+            <p className="text-xs font-bold text-[#17382d] truncate">Install KisanJod App</p>
+            <p className="text-[11px] text-[#5c756a] truncate">Fast 1-tap home screen access</p>
+          </div>
         </div>
-        <div className="text-left min-w-0">
-          <p className="text-xs font-bold text-[#17382d] truncate">Install KisanJod App</p>
-          <p className="text-[11px] text-[#5c756a] truncate">Fast 1-tap home screen access</p>
+        <span className="text-xs font-extrabold text-[#176b4b] bg-white px-2.5 py-1 rounded-xl border border-emerald-200 shadow-2xs shrink-0 ml-2">
+          Install
+        </span>
+      </button>
+      {showManualTip && (
+        <div className="p-3 rounded-xl bg-amber-50 border border-amber-300 text-xs text-amber-900 flex items-start justify-between gap-2 shadow-xs">
+          <span>📲 To install: tap your browser menu (⋮ or Share) and select <strong>Add to Home Screen</strong>.</span>
+          <button
+            type="button"
+            onClick={() => setShowManualTip(false)}
+            className="text-amber-800 hover:text-amber-950 font-bold px-1"
+            aria-label="Dismiss tip"
+          >
+            ✕
+          </button>
         </div>
-      </div>
-      <span className="text-xs font-extrabold text-[#176b4b] bg-white px-2.5 py-1 rounded-xl border border-emerald-200 shadow-2xs shrink-0 ml-2">
-        Install
-      </span>
-    </button>
+      )}
+    </div>
   );
 }

@@ -132,14 +132,6 @@ h1, h2, h3, h4, .font-heading {
   font-size: 12px;
   font-weight: 800;
 }
-/* In-place website text highlight during Listen / Read Aloud */
-.speech-active-highlight {
-  background-color: #fde68a !important; /* amber-200 */
-  color: #09090b !important; /* zinc-950 */
-  border-radius: 6px !important;
-  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.5) !important;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
-}
 
 /* Hero card with high-res overlay */
 .hero-card {

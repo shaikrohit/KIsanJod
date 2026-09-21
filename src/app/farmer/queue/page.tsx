@@ -46,6 +46,15 @@ function QueueContent() {
   const centreId = searchParams.get("centreId");
   const { t, locale } = useLanguage();
 
+  const [activeBookingId, setActiveBookingId] = useState<string>(bookingId || "");
+  const [allFarmerActiveBookings, setAllFarmerActiveBookings] = useState<Array<{
+    id: string;
+    tokenNumber: string;
+    cropName: string;
+    centerId: string;
+    status: string;
+    bookedDate: string;
+  }>>([]);
   const [queueData, setQueueData] = useState<QueueResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -90,13 +99,30 @@ function QueueContent() {
       if (!res.ok) return;
       const d = await res.json();
       const allBookings = d.bookings || [];
-      const matching = bookingId
-        ? allBookings.find((b: { id: string }) => b.id === bookingId)
-        : allBookings.find((b: { status: string }) =>
-            ["WAITING", "CALLED", "AT_BAY", "STANDBY"].includes(b.status)
-          ) || allBookings[0];
+      const activeList = allBookings.filter((b: { status: string }) =>
+        ["WAITING", "CALLED", "AT_BAY", "STANDBY"].includes(b.status)
+      );
+      setAllFarmerActiveBookings(activeList);
+
+      const currentTargetId =
+        activeBookingId && activeBookingId !== "null"
+          ? activeBookingId
+          : bookingId && bookingId !== "null"
+          ? bookingId
+          : "";
+
+      // Pick matching booking: prefer active bookings over stale/cancelled ones
+      let matching = activeList.find((b: { id: string }) => b.id === currentTargetId);
+      if (!matching && activeList.length > 0) {
+        matching = activeList[0];
+      } else if (!matching && currentTargetId) {
+        matching = allBookings.find((b: { id: string }) => b.id === currentTargetId);
+      } else if (!matching && allBookings.length > 0) {
+        matching = allBookings[0];
+      }
 
       if (matching) {
+        setActiveBookingId(matching.id);
         if (matching.centerId && matching.centerId !== activeCentreId) {
           setActiveCentreId(matching.centerId);
           fetchLiveQueue(matching.centerId);
@@ -122,7 +148,7 @@ function QueueContent() {
     } finally {
       setLoading(false);
     }
-  }, [bookingId, router, activeCentreId, fetchLiveQueue]);
+  }, [activeBookingId, bookingId, router, activeCentreId, fetchLiveQueue]);
 
   // Zero-delay instant sync over SSE and BroadcastChannel
   useInstantSync(() => {
@@ -140,16 +166,6 @@ function QueueContent() {
     }, 15000);
     return () => clearInterval(timer);
   }, [fetchLiveQueue, fetchBookingDetails]);
-
-  // Voice readout function
-  const speakStatus = (text: string) => {
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = locale === "hi" ? "hi-IN" : locale === "te" ? "te-IN" : "en-IN";
-      window.speechSynthesis.speak(utterance);
-    }
-  };
 
   if (loading) {
     return (
@@ -186,7 +202,7 @@ function QueueContent() {
     myStatus === "STANDBY";
 
   const isTurnNearing =
-    !isCalled && !isStandby && farmersAhead === 0 && waitingList.length > 0;
+    myStatus === "WAITING" && myQueueIndex === 0 && !isCalled && !isStandby;
 
   return (
     <div className="space-y-4 pb-28 max-w-lg mx-auto">
@@ -214,6 +230,35 @@ function QueueContent() {
         </div>
       </div>
 
+      {/* Multiple Active Bookings Switcher Tabs */}
+      {allFarmerActiveBookings.length > 1 && (
+        <div className="bg-emerald-900/60 backdrop-blur-md rounded-2xl p-2.5 border border-emerald-500/30 flex flex-wrap items-center gap-2">
+          <span className="text-[10px] font-black uppercase tracking-wider text-emerald-200 px-1">
+            Active Passes:
+          </span>
+          {allFarmerActiveBookings.map((b) => (
+            <button
+              key={b.id}
+              type="button"
+              onClick={() => {
+                setActiveBookingId(b.id);
+                if (b.centerId) {
+                  setActiveCentreId(b.centerId);
+                  fetchLiveQueue(b.centerId);
+                }
+              }}
+              className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all ${
+                b.id === activeBookingId
+                  ? "bg-amber-400 text-zinc-950 shadow-md scale-102"
+                  : "bg-white/10 text-white hover:bg-white/20 border border-white/15"
+              }`}
+            >
+              Token {b.tokenNumber} ({b.cropName})
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Next-in-Line Gate Readiness Alert (Decision 8) */}
       {farmersAhead === 0 && queueData?.currentlyServing && !isCalled && (
         <div className="bg-amber-400 text-zinc-950 rounded-2xl p-4 shadow-xl border-2 border-amber-600 flex items-center justify-between gap-3 animate-subtle-pulse">
@@ -228,16 +273,6 @@ function QueueContent() {
               Please line up your vehicle at the Mandi Unloading Gate now.
             </p>
           </div>
-          <button
-            onClick={() =>
-              speakStatus(
-                `Vehicle ${queueData.currentlyServing?.tokenNumber} is completing unloading. Please line up your vehicle at the unloading gate now.`
-              )
-            }
-            className="px-3 py-2 bg-zinc-950 hover:bg-zinc-800 text-white font-black text-xs rounded-xl shrink-0 shadow"
-          >
-            🔊 Listen
-          </button>
         </div>
       )}
 
@@ -249,16 +284,6 @@ function QueueContent() {
           <p className="text-xs text-purple-100 mt-1">
             Token <strong>{myTokenNumber}</strong>: {t("turnCalledDesc")}
           </p>
-          <button
-            onClick={() =>
-              speakStatus(
-                `${t("yourTokenNumber")} ${myTokenNumber}. ${t("turnCalledSpeech")}`
-              )
-            }
-            className="mt-3 bg-white text-purple-900 font-bold px-4 py-2 rounded-xl text-xs shadow hover:bg-purple-50"
-          >
-            🔊 {t("tapToSpeak")}
-          </button>
         </div>
       )}
 
@@ -272,12 +297,6 @@ function QueueContent() {
           <p className="text-xs text-amber-100 mt-1">
             {t("turnApproachingDesc")}
           </p>
-          <button
-            onClick={() => speakStatus(t("turnNearingSpeech"))}
-            className="mt-3 bg-white text-amber-900 font-bold px-4 py-1.5 rounded-xl text-xs shadow hover:bg-amber-50"
-          >
-            🔊 {t("tapToSpeak")}
-          </button>
         </div>
       )}
 
@@ -341,20 +360,44 @@ function QueueContent() {
         </div>
       )}
 
+      {/* Cancelled Token State Banner */}
+      {myStatus === "CANCELLED" && (
+        <div className="bg-gradient-to-r from-red-900/80 to-red-950/90 text-white rounded-3xl p-6 shadow-2xl text-center border-2 border-red-500/50 space-y-3">
+          <div className="text-4xl">🚫</div>
+          <h3 className="text-xl font-black font-heading text-red-200">Delivery Slot Released</h3>
+          <p className="text-xs text-red-100">
+            Token <strong>{myTokenNumber}</strong> was cancelled. Your slot was immediately released to the queue.
+          </p>
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-2.5">
+            <Link
+              href="/farmer/book"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-extrabold text-xs shadow-md transition-all"
+            >
+              📅 Schedule New Delivery Slot
+            </Link>
+            <Link
+              href="/farmer/dashboard"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20 transition-all"
+            >
+              🏠 Return to Dashboard
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Main Token Hero Card */}
       <div className="bg-[#072a1e] text-white rounded-3xl p-6 shadow-2xl text-center relative overflow-hidden border border-white/10">
         <div className="flex items-center justify-between text-xs text-emerald-200 mb-2">
           <span className="font-bold">{cropName || t("crop")}</span>
-          <button
-            onClick={() =>
-              speakStatus(
-                `Your token is ${myTokenNumber}. There are ${farmersAhead} farmers ahead of you.`
-              )
-            }
-            className="bg-white/15 hover:bg-white/20 text-white px-3 py-1 rounded-full flex items-center gap-1 text-xs border border-white/20"
-          >
-            🔊 {t("tapToSpeak")}
-          </button>
+          <span className="text-[11px] font-bold text-emerald-300 bg-white/10 px-2.5 py-0.5 rounded-full border border-white/15">
+            {myStatus === "CANCELLED"
+              ? "Slot Cancelled"
+              : myStatus === "COMPLETED"
+              ? "Completed"
+              : farmersAhead === 0
+              ? "Next in Queue"
+              : `${farmersAhead} ahead`}
+          </span>
         </div>
 
         <p className="text-xs uppercase tracking-widest text-emerald-300 font-extrabold">
@@ -388,25 +431,28 @@ function QueueContent() {
           </div>
         </div>
 
-        {/* Action buttons: Cancel & Reschedule */}
-        <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-center gap-3">
-          <button
-            type="button"
-            onClick={() => {
-              router.push(`/farmer/book?rescheduleBookingId=${bookingId || ""}&centreId=${centreId || ""}`);
-            }}
-            className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl border border-white/20 transition-colors shadow-sm"
-          >
-            🗓️ Reschedule
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowCancelConfirm(true)}
-            className="px-4 py-2 bg-red-950/60 hover:bg-red-900/80 text-red-200 text-xs font-bold rounded-xl border border-red-500/40 transition-colors shadow-sm"
-          >
-            ✕ Cancel
-          </button>
-        </div>
+        {/* Action buttons: Cancel & Reschedule (Only active for WAITING / STANDBY passes) */}
+        {["WAITING", "STANDBY"].includes(myStatus) && (
+          <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                const targetId = activeBookingId || bookingId || "";
+                router.push(`/farmer/book?rescheduleBookingId=${targetId}&centreId=${activeCentreId || centreId || ""}`);
+              }}
+              className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl border border-white/20 transition-colors shadow-sm"
+            >
+              🗓️ Reschedule
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowCancelConfirm(true)}
+              className="px-4 py-2 bg-red-950/60 hover:bg-red-900/80 text-red-200 text-xs font-bold rounded-xl border border-red-500/40 transition-colors shadow-sm"
+            >
+              ✕ Cancel
+            </button>
+          </div>
+        )}
       </div>
 
       <section className="government-panel p-5" aria-labelledby="queue-status-title">
@@ -414,7 +460,15 @@ function QueueContent() {
           <div>
             <p className="eyebrow">{t("yourQueueStatus")}</p>
             <h2 id="queue-status-title" className="mt-1 text-xl font-extrabold text-[#17382d] font-heading">
-              {isCalled ? "Called for Processing" : isStandby ? t("standby") : t("waitingForCall")}
+              {myStatus === "COMPLETED"
+                ? "Procurement Completed"
+                : myStatus === "CANCELLED"
+                ? "Slot Cancelled"
+                : isCalled
+                ? "Called for Processing"
+                : isStandby
+                ? t("standby")
+                : t("waitingForCall")}
             </h2>
           </div>
           <span className="status-dot" aria-hidden="true" />
@@ -524,7 +578,7 @@ function QueueContent() {
           <span>{t("navBook")}</span>
         </Link>
         <Link
-          href={`/farmer/queue?bookingId=${bookingId}&centreId=${centreId}`}
+          href="/farmer/queue"
           className="flex flex-col items-center text-amber-400 text-xs font-bold"
         >
           <span className="text-lg">⏳</span>
@@ -549,11 +603,12 @@ function QueueContent() {
           variant="danger"
           onConfirm={async () => {
             setShowCancelConfirm(false);
-            if (!bookingId) return;
+            const targetId = activeBookingId || bookingId;
+            if (!targetId) return;
             const res = await fetch("/api/bookings", {
               method: "PATCH",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ action: "cancel", bookingId }),
+              body: JSON.stringify({ action: "cancel", bookingId: targetId }),
             });
             const data = await res.json();
             if (data.success) router.push("/farmer/dashboard");

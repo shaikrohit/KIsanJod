@@ -62,6 +62,129 @@ export async function POST(req: NextRequest) {
 
     const estimatedQtl = parseFloat(((packageCount * kgPerPkg) / 100).toFixed(2));
 
+
+    // === Multi-Slot Booking Constraint: Maximum 3 Active Bookings ===
+    // Farmers can book 1, 2, or 3 slots, but cannot exceed 3 active concurrent tokens
+    const activeBookingsCount = await db.booking.count({
+      where: {
+        farmerId,
+        status: { in: ["WAITING", "CALLED", "AT_BAY", "STANDBY"] },
+        ...(rescheduleBookingId ? { id: { not: rescheduleBookingId } } : {}),
+      },
+    });
+
+    if (activeBookingsCount >= 3) {
+      return NextResponse.json(
+        {
+          success: false,
+          errorType: "ACTIVE_SLOT_LIMIT_EXCEEDED",
+          error: "Active Booking Limit Reached: You currently have 3 active delivery tokens scheduled. APMC guidelines permit a maximum of 3 concurrent active bookings per farmer to ensure fair queue opportunities for everyone. Please complete or cancel one of your existing visits before scheduling another.",
+          details: {
+            activeBookingsCount,
+            maxAllowed: 3,
+          },
+        },
+        { status: 400 }
+      );
+    }
+
+    // === Multi-Centre Booking Constraint: Cumulative Verified Land Quota ===
+    const farmerLandRecord =
+      (await db.landRecord.findFirst({
+        where: {
+          farmerId,
+          verifiedSownCrop: { equals: crop.nameEn, mode: "insensitive" },
+        },
+        select: { maxProcurementQuotaQtl: true, utilizedQuotaQtl: true, verifiedSownCrop: true },
+      })) ||
+      (await db.landRecord.findFirst({
+        where: { farmerId },
+        select: { maxProcurementQuotaQtl: true, utilizedQuotaQtl: true, verifiedSownCrop: true },
+      }));
+
+    if (farmerLandRecord) {
+      // Sum active bookings for this farmer and crop (excluding rescheduled slot if updating)
+      const activeBookings = await db.booking.findMany({
+        where: {
+          farmerId,
+          status: { in: ["WAITING", "CALLED", "AT_BAY", "STANDBY"] },
+          cropName: { equals: crop.nameEn, mode: "insensitive" },
+          ...(rescheduleBookingId ? { id: { not: rescheduleBookingId } } : {}),
+        },
+        select: { packageCount: true, unitType: true, estimatedQuantityQtl: true },
+      });
+
+      const currentBookedQtl = activeBookings.reduce((sum, b) => {
+        if (typeof b.estimatedQuantityQtl === "number" && b.estimatedQuantityQtl > 0) {
+          return sum + b.estimatedQuantityQtl;
+        }
+        const kgPerUnit = b.unitType === "CRATE_25KG" ? 25 : 50;
+        return sum + (b.packageCount * kgPerUnit) / 100;
+      }, 0);
+
+      const totalQuota = farmerLandRecord.maxProcurementQuotaQtl;
+      const alreadyUtilized = farmerLandRecord.utilizedQuotaQtl || 0;
+      const remainingQuota = Math.max(0, parseFloat((totalQuota - alreadyUtilized - currentBookedQtl).toFixed(2)));
+
+      if (estimatedQtl > remainingQuota) {
+        const maxAllowedPackages = Math.floor((remainingQuota * 100) / kgPerPkg);
+        const isFullyUtilized = remainingQuota <= 0;
+
+        const friendlyMessage = isFullyUtilized
+          ? `Your seasonal procurement quota for ${crop.nameEn} (${totalQuota.toFixed(1)} Qtl) is currently fully committed (${alreadyUtilized.toFixed(1)} Qtl delivered, ${currentBookedQtl.toFixed(1)} Qtl booked in active tokens). Please complete your ongoing mandi visits or cancel an unneeded slot to free up quota.`
+          : `Your requested delivery of ${estimatedQtl.toFixed(1)} Qtl exceeds your remaining verified ${crop.nameEn} quota of ${remainingQuota.toFixed(1)} Qtl (${currentBookedQtl.toFixed(1)} Qtl in active tokens, ${alreadyUtilized.toFixed(1)} Qtl previously delivered out of ${totalQuota.toFixed(1)} Qtl total). Please adjust your booking to ${remainingQuota.toFixed(1)} Qtl (${maxAllowedPackages} packages) or less.`;
+
+        return NextResponse.json(
+          {
+            success: false,
+            errorType: "QUOTA_EXCEEDED",
+            error: friendlyMessage,
+            quotaDetails: {
+              requestedQtl: estimatedQtl,
+              remainingQuotaQtl: remainingQuota,
+              totalQuotaQtl: totalQuota,
+              activeBookedQtl: currentBookedQtl,
+              alreadyUtilizedQtl: alreadyUtilized,
+              isFullyUtilized,
+              maxAllowedPackages,
+            },
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    // === Multi-Centre Booking Constraint: Same-Day Time Conflict ===
+    const sameDayBookings = await db.booking.findMany({
+      where: {
+        farmerId,
+        bookedDate: date,
+        status: { in: ["WAITING", "CALLED", "AT_BAY", "STANDBY"] },
+        centerId: { not: centerId }, // Different centre
+        ...(rescheduleBookingId ? { id: { not: rescheduleBookingId } } : {}),
+      },
+      include: { center: { select: { name: true } } },
+    });
+
+    if (sameDayBookings.length > 0) {
+      const existing = sameDayBookings[0];
+      const centreName = existing.center?.name || existing.centerId;
+      return NextResponse.json(
+        {
+          success: false,
+          errorType: "SAME_DAY_CONFLICT",
+          error: `Scheduling Conflict: You already hold active Token ${existing.tokenNumber} at ${centreName} on ${date}. Mandi regulations permit one procurement centre delivery per farmer per day to prevent highway congestion and maintain fair gate entry. Please pick a different date or manage your existing booking.`,
+          conflictDetails: {
+            tokenNumber: existing.tokenNumber,
+            centreName,
+            date,
+            bookingId: existing.id,
+          },
+        },
+        { status: 400 }
+      );
+    }
+
     // Fetch centre active palledar workers
     const center = await db.procurementCenter.findUnique({
       where: { id: centerId },
@@ -163,19 +286,50 @@ export async function POST(req: NextRequest) {
 
     if (rescheduleBookingId) {
       try {
-        await db.booking.update({
+        const oldBooking = await db.booking.findUnique({
           where: { id: rescheduleBookingId },
-          data: {
-            status: "CANCELLED",
-            queueEvents: {
-              create: {
-                eventType: "CANCELLED",
-                description: `Farmer rescheduled this slot. Replaced by token ${booking.tokenNumber}`,
-                triggeredBy: "FARMER",
+        });
+        if (oldBooking) {
+          await db.booking.update({
+            where: { id: rescheduleBookingId },
+            data: {
+              status: "CANCELLED",
+              queueEvents: {
+                create: {
+                  eventType: "CANCELLED",
+                  description: `Farmer rescheduled this slot. Replaced by token ${booking.tokenNumber}`,
+                  triggeredBy: "FARMER",
+                },
               },
             },
-          },
-        });
+          });
+          const oldHour = parseInt(oldBooking.scheduledSlotStart.split(":")[0], 10);
+          if (!isNaN(oldHour)) {
+            const oldCap = await db.hourlySlotCapacity.findUnique({
+              where: {
+                centerId_date_hourOfDay: {
+                  centerId: oldBooking.centerId,
+                  date: oldBooking.bookedDate,
+                  hourOfDay: oldHour,
+                },
+              },
+            });
+            if (oldCap && oldCap.bookedCount > 0) {
+              await db.hourlySlotCapacity.update({
+                where: { id: oldCap.id },
+                data: { bookedCount: Math.max(0, oldCap.bookedCount - 1) },
+              });
+            }
+          }
+
+          notifySync({
+            type: "BOOKING_CANCELLED",
+            centerId: oldBooking.centerId,
+            farmerId: oldBooking.farmerId,
+            bookingId: oldBooking.id,
+            tokenNumber: oldBooking.tokenNumber,
+          });
+        }
       } catch (e) {
         console.error("Error auto-cancelling rescheduled booking:", e);
       }
@@ -326,6 +480,30 @@ export async function PATCH(req: NextRequest) {
           },
         },
       });
+
+      // Release hourly slot capacity
+      try {
+        const startHour = parseInt(booking.scheduledSlotStart.split(":")[0], 10);
+        if (!isNaN(startHour)) {
+          const cap = await db.hourlySlotCapacity.findUnique({
+            where: {
+              centerId_date_hourOfDay: {
+                centerId: booking.centerId,
+                date: booking.bookedDate,
+                hourOfDay: startHour,
+              },
+            },
+          });
+          if (cap && cap.bookedCount > 0) {
+            await db.hourlySlotCapacity.update({
+              where: { id: cap.id },
+              data: { bookedCount: Math.max(0, cap.bookedCount - 1) },
+            });
+          }
+        }
+      } catch (capErr) {
+        console.error("Error releasing slot capacity on cancel:", capErr);
+      }
 
       // Auto-shift downstream waiting tokens in this session
       const downstreamWaiting = await db.booking.findMany({
