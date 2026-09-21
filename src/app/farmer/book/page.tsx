@@ -782,8 +782,7 @@ function BookingContent() {
                 {getCropName(selectedCrop.key, locale)}
               </h3>
               <p className="text-xs font-bold text-[#0f6b4d] mt-0.5">
-                Official MSP: ₹{selectedCrop.msp}/Quintals
-                {selectedCrop.category === "Vegetables" ? "Year-Round APMC Produce" : selectedCrop.key === "Paddy" ? "Kharif Seasonal Procurement" : "Rabi Seasonal Procurement"} • {selectedCrop.packagingBadge}
+                {selectedCrop.category === "Grains" ? "Grains & Cereals" : selectedCrop.category === "Pulses" ? "Pulses & Legumes" : "Vegetables & Horticulture"} • {selectedCrop.category === "Vegetables" ? "Year-Round APMC Produce" : selectedCrop.key === "Paddy" ? "Kharif Season" : "Rabi Season"} • {selectedCrop.packagingBadge}
               </p>
             </div>
           </div>
@@ -1026,14 +1025,6 @@ function BookingContent() {
                   ±{handlingResult.bufferMinutes} min buffer
                 </span>
               </div>
-            </div>
-
-            {/* Estimated MSP Payout */}
-            <div className="flex justify-between items-center text-sm pt-2.5 border-t border-[#a8e5cc]/60">
-              <span className="text-[#4b5563] font-semibold">Estimated MSP Payout:</span>
-              <strong className="text-xl font-black text-[#0d4f3c] font-heading">
-                ₹{Math.round(selectedCrop.msp * handlingResult.netWeightQuintals).toLocaleString("en-IN")}
-              </strong>
             </div>
           </div>
 
