@@ -645,16 +645,10 @@ function BookingContent() {
         <div className="glass-card p-6 sm:p-7 space-y-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
-              <span className="pill green mb-1.5">
-                {t("step")} 1 • APMC Regulated
-              </span>
               <h2 className="text-xl sm:text-2xl font-black text-gray-900 font-heading">
                 {t("stepCrop")}
               </h2>
             </div>
-            <span className="text-xs font-bold text-gray-500">
-              {CROPS.length} Mandi Commodities Available
-            </span>
           </div>
 
           {/* Interactive Category Filter Tabs */}
@@ -762,9 +756,6 @@ function BookingContent() {
       {step === 2 && selectedCrop && (
         <div className="glass-card p-6 sm:p-8 space-y-5 rounded-[32px] bg-white shadow-xl border border-gray-100">
           <div>
-            <span className="inline-block px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider bg-[#e6f4ea] text-[#137333] border border-[#ceead6] mb-3">
-              STEP 2
-            </span>
             <h2 className="text-2xl sm:text-3xl font-black text-gray-900 font-heading tracking-tight">
               Bags & Capacity
             </h2>
@@ -1054,7 +1045,6 @@ function BookingContent() {
       {step === 3 && (
         <div className="glass-card p-6 sm:p-7 space-y-5">
           <div>
-            <span className="pill green mb-1.5">{t("step")} 3</span>
             <h2 className="text-xl sm:text-2xl font-black text-gray-900 font-heading">
               {t("stepCentre")}
             </h2>
@@ -1231,35 +1221,55 @@ function BookingContent() {
                       <span>{sessionsData.morningSession.endTime12}</span>
                     </div>
 
-                    {/* Single Clean Session Timeline Bar */}
-                    <div className="relative h-9 rounded-xl bg-gray-100 border border-gray-300 overflow-hidden flex items-center shadow-inner">
-                      {/* Booked Segments in Morning Session */}
-                      {sessionsData.morningSession.bookedSegments.map((seg) => (
-                        <div
-                          key={seg.id}
-                          style={{
-                            left: `${seg.leftPercent}%`,
-                            width: `${seg.widthPercent}%`,
-                          }}
-                          className="absolute h-full bg-zinc-800 text-white flex items-center justify-center font-bold text-[10px] tracking-tight border-r border-zinc-900 select-none truncate px-1"
-                          title={`Token ${seg.tokenNumber}: ${seg.startTime12} - ${seg.endTime12}`}
-                        >
-                          {seg.tokenNumber}
-                        </div>
-                      ))}
+                    {/* Single Clean Session Timeline Bar with floating pin label above */}
+                    <div className={`relative${selectedSessionType === "morning" && !sessionsData.morningSession.isFull ? " pt-8" : ""}`}>
+                      {/* Floating "Your Slot" label pinned above the bar */}
+                      {selectedSessionType === "morning" && !sessionsData.morningSession.isFull && (() => {
+                        const left = sessionsData.morningSession.suggestedSlot.candidateLeftPercent;
+                        const width = sessionsData.morningSession.suggestedSlot.candidateWidthPercent;
+                        const centerPercent = left + width / 2;
+                        const slot = sessionsData.morningSession.suggestedSlot;
+                        return (
+                          <div
+                            className="absolute -top-7 z-10 flex flex-col items-center pointer-events-none"
+                            style={{ left: `${Math.min(Math.max(centerPercent, 8), 90)}%`, transform: "translateX(-50%)" }}
+                          >
+                            <span className="bg-emerald-700 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full whitespace-nowrap shadow-sm border border-emerald-900">
+                              ✦ Your Slot · {formatApproxTimeRange12h(slot.startTime24, slot.endTime24)}
+                            </span>
+                            <span className="w-px h-1.5 bg-emerald-600 mt-0.5" />
+                          </div>
+                        );
+                      })()}
+                      <div className="relative h-9 rounded-xl bg-gray-100 border border-gray-300 overflow-hidden flex items-center shadow-inner">
+                        {/* Booked Segments in Morning Session */}
+                        {sessionsData.morningSession.bookedSegments.map((seg) => (
+                          <div
+                            key={seg.id}
+                            style={{
+                              left: `${seg.leftPercent}%`,
+                              width: `${seg.widthPercent}%`,
+                            }}
+                            className="absolute h-full bg-zinc-800 text-white flex items-center justify-center font-bold text-[10px] tracking-tight border-r border-zinc-900 select-none truncate px-1"
+                            title={`Token ${seg.tokenNumber}: ${seg.startTime12} - ${seg.endTime12}`}
+                          >
+                            {seg.tokenNumber}
+                          </div>
+                        ))}
 
-                      {/* Candidate / Selected Slot Highlight */}
-                      {selectedSessionType === "morning" && !sessionsData.morningSession.isFull && (
-                        <div
-                          style={{
-                            left: `${sessionsData.morningSession.suggestedSlot.candidateLeftPercent}%`,
-                            width: `${sessionsData.morningSession.suggestedSlot.candidateWidthPercent}%`,
-                          }}
-                          className="absolute h-full bg-emerald-600 text-white font-black flex items-center justify-center text-[10px] border-2 border-emerald-800 select-none truncate px-1 shadow-sm"
-                        >
-                          Your Slot
-                        </div>
-                      )}
+                        {/* Candidate / Selected Slot Highlight — pin indicator (no text inside bar) */}
+                        {selectedSessionType === "morning" && !sessionsData.morningSession.isFull && (
+                          <div
+                            style={{
+                              left: `${sessionsData.morningSession.suggestedSlot.candidateLeftPercent}%`,
+                              width: `${Math.max(sessionsData.morningSession.suggestedSlot.candidateWidthPercent, 2)}%`,
+                              minWidth: "8px",
+                            }}
+                            className="absolute h-full bg-emerald-500 border-2 border-emerald-800 select-none shadow-sm rounded-sm"
+                            aria-label="Your allocated slot"
+                          />
+                        )}
+                      </div>
                     </div>
 
                     {/* Spillover Warning Notice if needed */}
@@ -1297,23 +1307,34 @@ function BookingContent() {
                   </div>
                 )}
 
-                {/* 2. LUNCH BREAK DIVIDER CARD */}
-                {sessionsData?.lunchBreak && (
-                  <div className="flex items-center justify-between p-3 rounded-2xl bg-gray-100 border border-gray-300 text-xs text-gray-700 font-semibold shadow-sm">
-                    <div className="flex items-center gap-2">
-                      <span className="text-base">🍽️</span>
-                      <span className="font-black text-gray-900">
-                        {sessionsData.lunchBreak.startTime12} – {sessionsData.lunchBreak.endTime12}
-                      </span>
-                      <span className="text-[11px] text-gray-500">
-                        (Mandi Lunch & Worker Shift Break · {sessionsData.lunchBreak.durationHours} Hours)
+                {/* 2. LUNCH BREAK DIVIDER — Clean & Simple */}
+                {sessionsData?.lunchBreak && (() => {
+                  const breakStart = sessionsData.lunchBreak.startTime12;
+                  const breakEnd = sessionsData.lunchBreak.endTime12;
+                  const lunchEndDisplay = sessionsData.lunchBreak.durationHours < 0.1
+                    ? (() => {
+                        try {
+                          const parts = sessionsData.lunchBreak.startTime24.split(":").map(Number);
+                          const endH = (parts[0] + 1) % 24;
+                          const suffix = endH < 12 ? "AM" : "PM";
+                          const disp = endH === 0 ? 12 : endH > 12 ? endH - 12 : endH;
+                          return `${disp}:${String(parts[1]).padStart(2, "0")} ${suffix}`;
+                        } catch (_e) { return breakEnd; }
+                      })()
+                    : breakEnd;
+                  return (
+                    <div className="flex items-center justify-between px-4 py-2.5 rounded-2xl bg-gray-50 border border-gray-200 text-xs text-gray-600">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">☕</span>
+                        <span className="font-bold text-gray-800">Lunch Break</span>
+                        <span className="text-gray-500">{breakStart} – {lunchEndDisplay}</span>
+                      </div>
+                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider bg-gray-100 px-2 py-0.5 rounded-md border border-gray-200">
+                        Break
                       </span>
                     </div>
-                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-wider bg-white px-2.5 py-0.5 rounded-md border border-gray-300">
-                      Closed
-                    </span>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* 3. AFTERNOON SESSION CARD */}
                 {sessionsData?.afternoonSession && (
@@ -1372,35 +1393,56 @@ function BookingContent() {
                       <span>{sessionsData.afternoonSession.endTime12}</span>
                     </div>
 
-                    {/* Single Clean Session Timeline Bar */}
-                    <div className="relative h-9 rounded-xl bg-gray-100 border border-gray-300 overflow-hidden flex items-center shadow-inner">
-                      {/* Booked Segments in Afternoon Session */}
-                      {sessionsData.afternoonSession.bookedSegments.map((seg) => (
-                        <div
-                          key={seg.id}
-                          style={{
-                            left: `${seg.leftPercent}%`,
-                            width: `${seg.widthPercent}%`,
-                          }}
-                          className="absolute h-full bg-zinc-800 text-white flex items-center justify-center font-bold text-[10px] tracking-tight border-r border-zinc-900 select-none truncate px-1"
-                          title={`Token ${seg.tokenNumber}: ${seg.startTime12} - ${seg.endTime12}`}
-                        >
-                          {seg.tokenNumber}
-                        </div>
-                      ))}
+                    {/* Single Clean Session Timeline Bar with floating pin label above */}
+                    <div className={`relative${selectedSessionType === "afternoon" && !sessionsData.afternoonSession.isFull ? " pt-8" : ""}`}>
+                      {/* Floating "Your Slot" label pinned above the bar */}
+                      {selectedSessionType === "afternoon" && !sessionsData.afternoonSession.isFull && (() => {
+                        const left = sessionsData.afternoonSession.suggestedSlot.candidateLeftPercent;
+                        const width = sessionsData.afternoonSession.suggestedSlot.candidateWidthPercent;
+                        const centerPercent = left + width / 2;
+                        const slot = sessionsData.afternoonSession.suggestedSlot;
+                        return (
+                          <div
+                            className="absolute -top-7 z-10 flex flex-col items-center pointer-events-none"
+                            style={{ left: `${Math.min(Math.max(centerPercent, 8), 90)}%`, transform: "translateX(-50%)" }}
+                          >
+                            <span className="bg-emerald-700 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full whitespace-nowrap shadow-sm border border-emerald-900">
+                              ✦ Your Slot · {formatApproxTimeRange12h(slot.startTime24, slot.endTime24)}
+                            </span>
+                            <span className="w-px h-1.5 bg-emerald-600 mt-0.5" />
+                          </div>
+                        );
+                      })()}
 
-                      {/* Candidate / Selected Slot Highlight */}
-                      {selectedSessionType === "afternoon" && !sessionsData.afternoonSession.isFull && (
-                        <div
-                          style={{
-                            left: `${sessionsData.afternoonSession.suggestedSlot.candidateLeftPercent}%`,
-                            width: `${sessionsData.afternoonSession.suggestedSlot.candidateWidthPercent}%`,
-                          }}
-                          className="absolute h-full bg-emerald-600 text-white font-black flex items-center justify-center text-[10px] border-2 border-emerald-800 select-none truncate px-1 shadow-sm"
-                        >
-                          Your Slot
-                        </div>
-                      )}
+                      <div className="relative h-9 rounded-xl bg-gray-100 border border-gray-300 overflow-hidden flex items-center shadow-inner">
+                        {/* Booked Segments in Afternoon Session */}
+                        {sessionsData.afternoonSession.bookedSegments.map((seg) => (
+                          <div
+                            key={seg.id}
+                            style={{
+                              left: `${seg.leftPercent}%`,
+                              width: `${seg.widthPercent}%`,
+                            }}
+                            className="absolute h-full bg-zinc-800 text-white flex items-center justify-center font-bold text-[10px] tracking-tight border-r border-zinc-900 select-none truncate px-1"
+                            title={`Token ${seg.tokenNumber}: ${seg.startTime12} - ${seg.endTime12}`}
+                          >
+                            {seg.tokenNumber}
+                          </div>
+                        ))}
+
+                        {/* Candidate / Selected Slot Highlight — pin indicator (no text inside bar) */}
+                        {selectedSessionType === "afternoon" && !sessionsData.afternoonSession.isFull && (
+                          <div
+                            style={{
+                              left: `${sessionsData.afternoonSession.suggestedSlot.candidateLeftPercent}%`,
+                              width: `${Math.max(sessionsData.afternoonSession.suggestedSlot.candidateWidthPercent, 2)}%`,
+                              minWidth: "8px",
+                            }}
+                            className="absolute h-full bg-emerald-500 border-2 border-emerald-800 select-none shadow-sm rounded-sm"
+                            aria-label="Your allocated slot"
+                          />
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1422,9 +1464,6 @@ function BookingContent() {
                           {selectedSessionType === "morning" ? "🌅 Morning Session" : "☀️ Afternoon Session"} • Est. Duration {formatDurationHoursMinutes(handlingResult.totalDurationMinutes, true)} ({packageCount} {unitLabel})
                         </p>
                       </div>
-                      <span className="text-[10px] font-black uppercase tracking-wider text-amber-900 bg-amber-100 border border-amber-300 px-3 py-1 rounded-full shadow-sm">
-                        Approximate Window (Live Dynamic)
-                      </span>
                     </div>
 
                     <div className="flex items-center justify-between text-xs text-gray-600 pt-2 border-t border-emerald-100">
@@ -1492,7 +1531,6 @@ function BookingContent() {
       {step === 4 && selectedCrop && selectedCentre && selectedSlot && (
         <div className="glass-card p-6 sm:p-7 space-y-5">
           <div>
-            <span className="pill green mb-1.5">{t("step")} 4</span>
             <h2 className="text-xl sm:text-2xl font-black text-gray-900 font-heading">
               {t("stepConfirm")}
             </h2>

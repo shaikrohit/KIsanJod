@@ -251,8 +251,8 @@ export default function GlobalHeader() {
             )}
           </div>
 
-          {/* Native PWA Notification Bell with Slide-Over History Drawer */}
-          <NotificationBell />
+          {/* Native PWA Notification Bell — only for authenticated users */}
+          {session && <NotificationBell userRole={session.role} />}
         </div>
 
         {/* ========================================================================= */}

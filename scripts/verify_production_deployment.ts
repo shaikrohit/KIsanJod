@@ -91,9 +91,23 @@ async function verifyProduction() {
     if (p.path === "/farmer/book") {
       const hasEstimatedPayout = res.body.includes("Estimated MSP Payout");
       const hasOfficialMspPrice = res.body.includes("Official MSP: ₹");
+      const hasStep1Pill = res.body.includes("Step 1 • APMC Regulated");
+      const hasCommodityCount = res.body.includes("7 Mandi Commodities Available");
+      const hasApproxPill = res.body.includes("Approximate Window (Live Dynamic)");
       assert("/farmer/book does not contain 'Estimated MSP Payout'", !hasEstimatedPayout);
       assert("/farmer/book does not contain 'Official MSP: ₹'", !hasOfficialMspPrice);
+      assert("/farmer/book does not contain 'Step 1 • APMC Regulated'", !hasStep1Pill);
+      assert("/farmer/book does not contain '7 Mandi Commodities Available'", !hasCommodityCount);
+      assert("/farmer/book does not contain 'Approximate Window (Live Dynamic)'", !hasApproxPill);
     }
+
+    if (p.path === "/farmer/queue") {
+      const hasLiveSyncing = res.body.includes("Live Syncing");
+      assert("/farmer/queue does not contain 'Live Syncing'", !hasLiveSyncing);
+    }
+
+    const hasTestAlert = res.body.includes("Send Test Mobile Alert");
+    assert(`${p.name} does not contain 'Send Test Mobile Alert'`, !hasTestAlert);
   }
 
   // --- SECTION 2: PRODUCTION STATIC ASSETS & PWA ---

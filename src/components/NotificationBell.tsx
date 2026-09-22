@@ -116,13 +116,20 @@ export function triggerNativeNotification(
   }
 }
 
-export function NotificationBell() {
+export function NotificationBell({ userRole }: { userRole?: "farmer" | "operator" | "admin" }) {
   const [notifications, setNotifications] = useState<MandiNotification[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [permission, setPermission] = useState<NotificationPermission | "unsupported">("default");
   const [activeTab, setActiveTab] = useState<"all" | "queue" | "payments">("all");
   const [toastAlert, setToastAlert] = useState<{ title: string; message: string; type: string; url?: string } | null>(null);
   const [feedbackNotice, setFeedbackNotice] = useState<{ type: "success" | "warning" | "error" | "info"; text: string } | null>(null);
+
+  const drawerTitle =
+    userRole === "operator"
+      ? "Operator Alerts"
+      : userRole === "admin"
+      ? "Platform Alerts"
+      : "Mandi Alerts & Updates";
 
   const syncNotifications = useCallback(() => {
     try {
@@ -350,7 +357,7 @@ export function NotificationBell() {
                     </div>
                     <div>
                       <h2 className="text-base font-black text-gray-900 leading-tight">
-                        Mandi Alerts & Updates
+                        {drawerTitle}
                       </h2>
                       <p className="text-[11px] font-bold text-gray-500">
                         {unreadCount > 0 ? `${unreadCount} unread update(s)` : "All updates read"}
@@ -449,24 +456,6 @@ export function NotificationBell() {
                     </button>
                   </div>
                 )}
-
-                {/* Quick Test Mobile Alert Button */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    triggerNativeNotification(
-                      "🌾 Mandi Gate Call: Bay 2 Open!",
-                      "Token #T-2026-1002 report immediately to Weighing Bridge 1 with your tractor.",
-                      "turn",
-                      "/farmer/queue"
-                    );
-                  }}
-                  className="w-full py-2 px-3 rounded-xl bg-emerald-800 hover:bg-emerald-900 active:scale-98 text-white font-extrabold text-xs shadow-xs flex items-center justify-center gap-2 transition-all"
-                >
-                  <BellRing size={14} />
-                  <span>📲 Send Test Mobile Alert (Vibrate & Banner)</span>
-                </button>
-
                 {/* Category Filter Tabs */}
                 <div className="flex items-center justify-between gap-1 pt-1">
                   <div className="flex items-center gap-1">

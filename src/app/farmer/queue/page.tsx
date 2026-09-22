@@ -215,10 +215,6 @@ function QueueContent() {
           ← {t("navHome")}
         </Link>
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-950/70 border border-emerald-500/50 rounded-full text-[10px] font-black text-emerald-300 shadow-sm">
-            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span>Live Syncing</span>
-          </div>
           <button
             type="button"
             onClick={() => fetchLiveQueue()}
@@ -261,7 +257,7 @@ function QueueContent() {
 
       {/* Next-in-Line Gate Readiness Alert (Decision 8) */}
       {farmersAhead === 0 && queueData?.currentlyServing && !isCalled && (
-        <div className="bg-amber-400 text-zinc-950 rounded-2xl p-4 shadow-xl border-2 border-amber-600 flex items-center justify-between gap-3 animate-subtle-pulse">
+        <div className="bg-amber-400 text-zinc-950 rounded-2xl p-4 shadow-xl border-2 border-amber-600 flex items-center justify-between gap-3">
           <div>
             <span className="text-[10px] font-black uppercase tracking-wider bg-zinc-950 text-amber-300 px-2 py-0.5 rounded-full">
               🚜 GATE CALL • NEXT IN LINE
@@ -278,7 +274,7 @@ function QueueContent() {
 
       {/* 1. Turn Called Alert */}
       {isCalled && (
-        <div className="bg-gradient-to-r from-purple-800 to-indigo-800 text-white rounded-3xl p-5 shadow-2xl animate-bounce text-center border border-purple-400">
+        <div className="bg-gradient-to-r from-purple-800 to-indigo-800 text-white rounded-3xl p-5 shadow-2xl text-center border-2 border-purple-400 ring-4 ring-purple-500/30">
           <p className="text-3xl mb-1">📢</p>
           <h3 className="text-xl font-black font-heading">{t("turnCalledTitle")}</h3>
           <p className="text-xs text-purple-100 mt-1">
@@ -311,7 +307,7 @@ function QueueContent() {
 
       {/* 0. Real-time Weighment Completed & J-Form Generated Alert */}
       {(myStatus === "COMPLETED" || completedBill) && (
-        <div className="bg-gradient-to-r from-emerald-800 via-teal-800 to-emerald-900 text-white rounded-3xl p-6 shadow-2xl text-center border-2 border-emerald-400 space-y-4 animate-subtle-pulse">
+        <div className="bg-gradient-to-r from-emerald-800 via-teal-800 to-emerald-900 text-white rounded-3xl p-6 shadow-2xl text-center border-2 border-emerald-400 space-y-4">
           <div className="text-4xl">🎉</div>
           <div>
             <span className="text-[10px] font-black uppercase tracking-wider bg-white text-emerald-950 px-3 py-1 rounded-full">
@@ -605,13 +601,28 @@ function QueueContent() {
             setShowCancelConfirm(false);
             const targetId = activeBookingId || bookingId;
             if (!targetId) return;
-            const res = await fetch("/api/bookings", {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ action: "cancel", bookingId: targetId }),
-            });
-            const data = await res.json();
-            if (data.success) router.push("/farmer/dashboard");
+            try {
+              const res = await fetch("/api/bookings", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "cancel", bookingId: targetId }),
+              });
+              const data = await res.json();
+              if (data.success) {
+                // Optimistic state update: immediately reflect cancellation
+                setMyStatus("CANCELLED");
+                // Remove from active bookings list
+                setAllFarmerActiveBookings((prev) =>
+                  prev.filter((b) => b.id !== targetId)
+                );
+                // Refresh queue data
+                fetchLiveQueue();
+              } else {
+                console.error("Cancel failed:", data.error || "Unknown error");
+              }
+            } catch (err) {
+              console.error("Cancel request error:", err);
+            }
           }}
           onCancel={() => setShowCancelConfirm(false)}
         />
