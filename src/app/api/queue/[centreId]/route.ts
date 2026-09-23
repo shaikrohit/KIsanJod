@@ -11,7 +11,7 @@ export async function GET(
     
     const { searchParams } = new URL(req.url);
     const dateParam = searchParams.get("date");
-    const targetDate = dateParam || new Date().toISOString().split("T")[0];
+    const targetDate = dateParam || new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
 
     const bookings = await db.booking.findMany({
       where: { centerId: centreId, bookedDate: targetDate },
@@ -19,7 +19,8 @@ export async function GET(
       orderBy: { tokenNumber: "asc" },
     });
 
-    const currentlyServing = bookings.find((b) => b.status === "AT_BAY" || b.status === "CALLED");
+    const called = bookings.filter((b) => b.status === "AT_BAY" || b.status === "CALLED");
+    const currentlyServing = called[0] || null;
     const waiting = bookings.filter((b) => b.status === "WAITING");
     const completed = bookings.filter((b) => b.status === "COMPLETED");
     const standby = bookings.filter((b) => b.status === "STANDBY");
@@ -35,8 +36,18 @@ export async function GET(
             cropName: currentlyServing.cropName,
             status: currentlyServing.status,
             sessionName: currentlyServing.sessionName,
+            bayAssigned: currentlyServing.bayAssigned || 1,
           }
         : null,
+      calledQueue: called.map((b) => ({
+        id: b.id,
+        tokenNumber: b.tokenNumber,
+        farmerName: b.farmer.fullName,
+        cropName: b.cropName,
+        status: b.status,
+        sessionName: b.sessionName,
+        bayAssigned: b.bayAssigned || 1,
+      })),
       waitingQueue: waiting.map((b) => ({
         id: b.id,
         tokenNumber: b.tokenNumber,

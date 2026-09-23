@@ -240,7 +240,7 @@ export default function OperatorPage() {
     await fetch("/api/operator", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "call_next", centerId: operator.center.id }),
+      body: JSON.stringify({ action: "call_next", centerId: operator.center.id, date: selectedDate }),
     });
     fetchQueue();
     broadcastSync();

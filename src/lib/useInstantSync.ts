@@ -54,28 +54,41 @@ export function useInstantSync(onSync: (msg?: SyncMessage) => void) {
       onSyncRef.current(msg);
       if (typeof window !== "undefined" && msg?.type) {
         import("@/components/NotificationBell").then(({ triggerNativeNotification }) => {
-          if (msg.type === "QUEUE_CALL" || msg.type === "TURN_CALLED") {
+          // Check if user is logged in as a farmer
+          let currentFarmerId: string | null = null;
+          try {
+            const rawFarmer = localStorage.getItem("kisanjod_farmer");
+            if (rawFarmer) {
+              const f = JSON.parse(rawFarmer);
+              currentFarmerId = f?.id || null;
+            }
+          } catch {}
+
+          // Personal notification guard: only alert the farmer whose token is impacted
+          const isTargetFarmer = !msg.farmerId || !currentFarmerId || msg.farmerId === currentFarmerId;
+
+          if (isTargetFarmer && (msg.type === "QUEUE_CALL" || msg.type === "TURN_CALLED")) {
             triggerNativeNotification(
               "Gate Call: Your Turn is Active!",
               `Token ${msg.tokenNumber || ""} has been called to the weighing bay. Proceed immediately.`,
               "turn",
               "/farmer/queue"
             );
-          } else if (msg.type === "QUEUE_STANDBY" || msg.type === "STANDBY") {
+          } else if (isTargetFarmer && (msg.type === "QUEUE_STANDBY" || msg.type === "STANDBY")) {
             triggerNativeNotification(
               "Token on Standby",
               `Token ${msg.tokenNumber || ""} was placed on standby. Please report to the gate operator.`,
               "standby",
               "/farmer/queue"
             );
-          } else if (msg.type === "WEIGHMENT_COMPLETED" || msg.type === "J_FORM_GENERATED") {
+          } else if (isTargetFarmer && (msg.type === "WEIGHMENT_COMPLETED" || msg.type === "J_FORM_GENERATED")) {
             triggerNativeNotification(
               "Procurement Recorded: J-Form Generated",
               "Weighment has been recorded. Digital J-Form bill is generated and queued for DBT bank credit.",
               "weighment",
               "/farmer/payments"
             );
-          } else if (msg.type === "BOOKING_CREATED") {
+          } else if (isTargetFarmer && msg.type === "BOOKING_CREATED") {
             triggerNativeNotification(
               "Mandi Slot Confirmed",
               `Your token ${msg.tokenNumber || ""} has been scheduled successfully.`,
@@ -125,6 +138,10 @@ export function useInstantSync(onSync: (msg?: SyncMessage) => void) {
 
     const connectSSE = () => {
       try {
+        if (es) {
+          es.close();
+          es = null;
+        }
         es = new EventSource("/api/sync/stream");
 
         es.addEventListener("sync", (e: MessageEvent) => {
@@ -149,12 +166,30 @@ export function useInstantSync(onSync: (msg?: SyncMessage) => void) {
 
     connectSSE();
 
+    // 5. Visibility and Focus Change Listener (Mobile Screen Sleep Recovery)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        trigger();
+        if (!es || es.readyState === EventSource.CLOSED) {
+          connectSSE();
+        }
+      }
+    };
+    const handleFocus = () => {
+      trigger();
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+
     return () => {
       if (bc) {
         bc.close();
       }
       window.removeEventListener("storage", handleStorage);
       window.removeEventListener("kisanjod_sync", handleLocalSync);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
       if (es) {
         es.close();
       }

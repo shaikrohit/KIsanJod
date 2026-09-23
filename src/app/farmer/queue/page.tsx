@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useLanguage } from "@/lib/i18n";
 import { to12Hour, formatApproxTimeRange12h } from "@/lib/timeFormat";
 import { ConfirmationModal } from "@/components/ConfirmationModal";
-import { useInstantSync } from "@/lib/useInstantSync";
+import { useInstantSync, broadcastInstantSync } from "@/lib/useInstantSync";
 
 interface QueueResponse {
   centreId: string;
@@ -381,75 +381,100 @@ function QueueContent() {
         </div>
       )}
 
-      {/* Main Token Hero Card */}
-      <div className="bg-[#072a1e] text-white rounded-3xl p-6 shadow-2xl text-center relative overflow-hidden border border-white/10">
-        <div className="flex items-center justify-between text-xs text-emerald-200 mb-2">
-          <span className="font-bold">{cropName || t("crop")}</span>
-          <span className="text-[11px] font-bold text-emerald-300 bg-white/10 px-2.5 py-0.5 rounded-full border border-white/15">
-            {myStatus === "CANCELLED"
-              ? "Slot Cancelled"
-              : myStatus === "COMPLETED"
-              ? "Completed"
-              : farmersAhead === 0
-              ? "Next in Queue"
-              : `${farmersAhead} ahead`}
-          </span>
-        </div>
-
-        <p className="text-xs uppercase tracking-widest text-emerald-300 font-extrabold">
-          {t("yourTokenNumber")}
-        </p>
-        <p className="text-4xl sm:text-5xl font-black tracking-tight my-2 text-white font-heading">
-          {myTokenNumber || "B1-001"}
-        </p>
-
-        {/* Live Ripple ETA Display */}
-        <div className="mt-4 bg-emerald-950/70 rounded-2xl p-3 border border-emerald-800/80 flex items-center justify-around text-left">
-          <div>
-            <p className="text-[11px] text-emerald-300 font-bold">{t("scheduledTime")}</p>
-            <p className="text-sm font-black text-white">
-              {scheduledSlot || "~9:00 AM – ~9:30 AM"}
-            </p>
-          </div>
-          <div className="h-8 w-px bg-emerald-800" />
-          <div>
-            <p className="text-[11px] text-amber-300 flex items-center gap-1 font-bold">
-              {t("liveRippleEta")}
-              {totalDelayMinutes > 0 && (
-                <span className="text-[10px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-black">
-                  +{totalDelayMinutes}m
-                </span>
-              )}
-            </p>
-            <p className="text-base font-extrabold text-amber-400 font-heading">
-              ~{to12Hour(liveEta)}
-            </p>
+      {/* Empty State when Farmer has zero active tokens */}
+      {!myTokenNumber && allFarmerActiveBookings.length === 0 && myStatus !== "CANCELLED" && !completedBill ? (
+        <div className="bg-[#072a1e] text-white rounded-3xl p-8 shadow-2xl text-center space-y-4 border border-white/10">
+          <div className="text-4xl">🌾</div>
+          <h3 className="text-xl font-black font-heading text-white">No Active Delivery Passes</h3>
+          <p className="text-xs text-emerald-200/80 max-w-sm mx-auto leading-relaxed">
+            You do not have any active mandi delivery tokens in the queue. Book a scheduled slot to receive real-time queue updates and dynamic ripple ETA.
+          </p>
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Link
+              href="/farmer/book"
+              className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-amber-400 hover:bg-amber-300 text-zinc-950 font-black text-xs shadow-md transition-all"
+            >
+              📅 Book Mandi Slot Now
+            </Link>
+            <Link
+              href="/farmer/dashboard"
+              className="w-full sm:w-auto px-5 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20 transition-all"
+            >
+              🏠 Back to Dashboard
+            </Link>
           </div>
         </div>
-
-        {/* Action buttons: Cancel & Reschedule (Only active for WAITING / STANDBY passes) */}
-        {["WAITING", "STANDBY"].includes(myStatus) && (
-          <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-center gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                const targetId = activeBookingId || bookingId || "";
-                router.push(`/farmer/book?rescheduleBookingId=${targetId}&centreId=${activeCentreId || centreId || ""}`);
-              }}
-              className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl border border-white/20 transition-colors shadow-sm"
-            >
-              🗓️ Reschedule
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowCancelConfirm(true)}
-              className="px-4 py-2 bg-red-950/60 hover:bg-red-900/80 text-red-200 text-xs font-bold rounded-xl border border-red-500/40 transition-colors shadow-sm"
-            >
-              ✕ Cancel
-            </button>
+      ) : (
+        /* Main Token Hero Card */
+        <div className="bg-[#072a1e] text-white rounded-3xl p-6 shadow-2xl text-center relative overflow-hidden border border-white/10">
+          <div className="flex items-center justify-between text-xs text-emerald-200 mb-2">
+            <span className="font-bold">{cropName || t("crop")}</span>
+            <span className="text-[11px] font-bold text-emerald-300 bg-white/10 px-2.5 py-0.5 rounded-full border border-white/15">
+              {myStatus === "CANCELLED"
+                ? "Slot Cancelled"
+                : myStatus === "COMPLETED"
+                ? "Completed"
+                : farmersAhead === 0
+                ? "Next in Queue"
+                : `${farmersAhead} ahead`}
+            </span>
           </div>
-        )}
-      </div>
+
+          <p className="text-xs uppercase tracking-widest text-emerald-300 font-extrabold">
+            {t("yourTokenNumber")}
+          </p>
+          <p className="text-4xl sm:text-5xl font-black tracking-tight my-2 text-white font-heading">
+            {myTokenNumber || "B1-001"}
+          </p>
+
+          {/* Live Ripple ETA Display */}
+          <div className="mt-4 bg-emerald-950/70 rounded-2xl p-3 border border-emerald-800/80 flex items-center justify-around text-left">
+            <div>
+              <p className="text-[11px] text-emerald-300 font-bold">{t("scheduledTime")}</p>
+              <p className="text-sm font-black text-white">
+                {scheduledSlot || "~9:00 AM – ~9:30 AM"}
+              </p>
+            </div>
+            <div className="h-8 w-px bg-emerald-800" />
+            <div>
+              <p className="text-[11px] text-amber-300 flex items-center gap-1 font-bold">
+                {t("liveRippleEta")}
+                {totalDelayMinutes > 0 && (
+                  <span className="text-[10px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-black">
+                    +{totalDelayMinutes}m
+                  </span>
+                )}
+              </p>
+              <p className="text-base font-extrabold text-amber-400 font-heading">
+                ~{to12Hour(liveEta)}
+              </p>
+            </div>
+          </div>
+
+          {/* Action buttons: Cancel & Reschedule (Only active for WAITING / STANDBY passes) */}
+          {["WAITING", "STANDBY"].includes(myStatus) && (
+            <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  const targetId = activeBookingId || bookingId || "";
+                  router.push(`/farmer/book?rescheduleBookingId=${targetId}&centreId=${activeCentreId || centreId || ""}`);
+                }}
+                className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl border border-white/20 transition-colors shadow-sm"
+              >
+                🗓️ Reschedule
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowCancelConfirm(true)}
+                className="px-4 py-2 bg-red-950/60 hover:bg-red-900/80 text-red-200 text-xs font-bold rounded-xl border border-red-500/40 transition-colors shadow-sm"
+              >
+                ✕ Cancel
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       <section className="government-panel p-5" aria-labelledby="queue-status-title">
         <div className="flex items-start justify-between gap-4">
@@ -615,6 +640,11 @@ function QueueContent() {
                 setAllFarmerActiveBookings((prev) =>
                   prev.filter((b) => b.id !== targetId)
                 );
+                // Broadcast instant sync across tabs and devices
+                broadcastInstantSync({
+                  type: "BOOKING_CANCELLED",
+                  bookingId: targetId,
+                });
                 // Refresh queue data
                 fetchLiveQueue();
               } else {

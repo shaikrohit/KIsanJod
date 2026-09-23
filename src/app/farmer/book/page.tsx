@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, Suspense } from "react";
+import { useEffect, useState, useCallback, Suspense, Fragment } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLanguage, getCropName } from "@/lib/i18n";
 import { calculateHandlingDuration, formatDurationHoursMinutes, HandlingModelOutput } from "@/lib/handlingDuration";
@@ -619,24 +619,48 @@ function BookingContent() {
           </span>
         </button>
 
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] font-black uppercase tracking-wider text-emerald-800 bg-[#eafaf1] border border-emerald-200 px-2.5 py-1 rounded-full">
-            {step === 5 ? "Booking Complete" : `Step ${step} of 4`}
-          </span>
-        </div>
       </div>
 
-      {/* Progress Step Indicator */}
-      <div className="flex gap-1.5 px-1">
-        {[1, 2, 3, 4, 5].map((s) => (
-          <div
-            key={s}
-            className={`h-2 flex-1 rounded-full transition-all duration-300 ${
-              s <= step ? "bg-amber-400 shadow-sm shadow-amber-400/30" : "bg-white/20"
-            }`}
-          />
-        ))}
-      </div>
+      {/* 4-Step Flow Indicator matching Reference Design (1 — 2 — 3 — 4) */}
+      {step <= 4 && (
+        <div className="bg-white/95 backdrop-blur-md rounded-2xl border border-emerald-100/80 p-3.5 sm:p-4 shadow-sm">
+          <div className="flex items-center justify-center max-w-xs sm:max-w-sm mx-auto">
+            {[1, 2, 3, 4].map((s, idx) => {
+              const isCurrent = s === step;
+              const isCompleted = s < step;
+              return (
+                <Fragment key={s}>
+                  {idx > 0 && (
+                    <div
+                      className={`h-[2px] flex-1 mx-2 sm:mx-3 transition-colors duration-300 ${
+                        isCompleted ? "bg-[#165a36]" : "bg-[#ded9cf]"
+                      }`}
+                    />
+                  )}
+                  <button
+                    type="button"
+                    disabled={s > step}
+                    onClick={() => {
+                      if (isCompleted) setStep(s);
+                    }}
+                    className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm transition-all select-none shrink-0 ${
+                      isCurrent
+                        ? "bg-[#155836] text-white ring-4 ring-[#d8f1e5] shadow-xs cursor-default font-black"
+                        : isCompleted
+                        ? "bg-[#155836] text-white hover:bg-[#11462a] cursor-pointer active:scale-95 shadow-2xs font-bold"
+                        : "bg-[#e5e1d8] text-[#5b6e68] cursor-not-allowed font-bold"
+                    }`}
+                    aria-label={`Step ${s}`}
+                    aria-current={isCurrent ? "step" : undefined}
+                  >
+                    {s}
+                  </button>
+                </Fragment>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ========================================================================= */}
       {/* STEP 1: CROP SELECTION (Full-bleed Photo Cards with Text Overlay)         */}

@@ -240,11 +240,45 @@ export async function POST(req: NextRequest) {
     // Determine session name and sequential session token (e.g. M-001, A-001)
     const sessionNameResolved = sessionName || (startHour < 14 ? "MORNING" : "AFTERNOON");
     const prefix = sessionNameResolved === "MORNING" ? "M" : "A";
-    const existingSessionBookings = await db.booking.count({
-      where: { centerId, bookedDate: date, sessionName: sessionNameResolved },
+    
+    // Find highest existing token sequence for this centre, date, and session prefix
+    const lastSessionBooking = await db.booking.findFirst({
+      where: {
+        centerId,
+        bookedDate: date,
+        tokenNumber: { startsWith: `${prefix}-` },
+      },
+      orderBy: { tokenNumber: "desc" },
+      select: { tokenNumber: true },
     });
-    const seqNum = existingSessionBookings + 1;
-    const tokenNumber = `${prefix}-${String(seqNum).padStart(3, "0")}`;
+
+    let maxSeq = 0;
+    if (lastSessionBooking?.tokenNumber) {
+      const parts = lastSessionBooking.tokenNumber.split("-");
+      const parsed = parseInt(parts[1], 10);
+      if (!isNaN(parsed)) maxSeq = parsed;
+    }
+    let seqNum = maxSeq + 1;
+    let tokenNumber = `${prefix}-${String(seqNum).padStart(3, "0")}`;
+
+    // Collision safeguard against concurrent bookings
+    let collisionGuard = 0;
+    while (
+      collisionGuard < 50 &&
+      (await db.booking.findUnique({
+        where: {
+          centerId_bookedDate_tokenNumber: {
+            centerId,
+            bookedDate: date,
+            tokenNumber,
+          },
+        },
+      }))
+    ) {
+      seqNum++;
+      tokenNumber = `${prefix}-${String(seqNum).padStart(3, "0")}`;
+      collisionGuard++;
+    }
 
     // Create booking
     const randomSuffix = Math.floor(1000 + Math.random() * 9000);

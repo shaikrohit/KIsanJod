@@ -10,13 +10,13 @@ import crypto from "crypto";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { action, centerId, bookingId, operatorId, gradeData } = body;
+    const { action, centerId, bookingId, operatorId, gradeData, date } = body;
 
     if (action === "call_next") {
-      // Find next waiting token
-      const today = new Date().toISOString().split("T")[0];
+      // Find next waiting token using target date (respecting operator selected date or IST today)
+      const targetDate = date || new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
       const nextWaiting = await db.booking.findFirst({
-        where: { centerId, bookedDate: today, status: "WAITING" },
+        where: { centerId, bookedDate: targetDate, status: "WAITING" },
         orderBy: { tokenNumber: "asc" },
       });
 

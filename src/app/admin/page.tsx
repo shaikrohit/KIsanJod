@@ -182,6 +182,14 @@ export default function AdminDashboard() {
     setLoading(true);
     fetchCentres();
     fetchStats();
+
+    // 15-second safety heartbeat for uninterrupted telemetry sync across serverless instances
+    const timer = setInterval(() => {
+      fetchStats();
+      fetchCentres();
+    }, 15000);
+
+    return () => clearInterval(timer);
   }, [loggedIn, fetchCentres, fetchStats]);
 
   if (!loggedIn) {
