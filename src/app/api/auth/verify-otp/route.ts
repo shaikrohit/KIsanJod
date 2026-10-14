@@ -1,6 +1,5 @@
 // KisanJod - OTP Verification API
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
 
 const FALLBACK_FARMERS: Record<string, any> = {
   farmer_001: {
@@ -339,58 +338,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid OTP. Demo OTP is 123456" }, { status: 401 });
     }
 
-    let farmer: any = null;
-    try {
-      farmer = await db.farmer.findUnique({
-        where: { id: farmerId },
-        include: { landRecords: true, bankAccounts: true },
-      });
-    } catch (e) {
-      console.warn("Database error during verify-otp, falling back to persona:", e);
-    }
-
-    if (!farmer) {
-      const fallback = FALLBACK_FARMERS[farmerId] || FALLBACK_FARMERS.farmer_001;
-      return NextResponse.json({
-        success: true,
-        farmer: fallback,
-      });
-    }
-
+    const fallback = FALLBACK_FARMERS[farmerId] || FALLBACK_FARMERS.farmer_001;
     return NextResponse.json({
       success: true,
-      farmer: {
-        id: farmer.id,
-        fullName: farmer.fullName,
-        maskedAadhaar: farmer.maskedAadhaar,
-        phoneNumber: farmer.phoneNumber,
-        state: farmer.state,
-        district: farmer.district,
-        village: farmer.village,
-        languagePreference: farmer.languagePreference,
-        landRecords: farmer.landRecords.map((lr: any) => ({
-          khasraNumber: lr.khasraNumber,
-          khatauniNumber: lr.khatauniNumber,
-          subDistrictTehsil: lr.subDistrictTehsil,
-          totalLandAreaAcres: lr.totalLandAreaAcres,
-          verifiedSownCrop: lr.verifiedSownCrop,
-          sownAreaAcres: lr.sownAreaAcres,
-          mspProductivityNormQtlPerAcre: lr.mspProductivityNormQtlPerAcre,
-          maxProcurementQuotaQtl: lr.maxProcurementQuotaQtl,
-          utilizedQuotaQtl: lr.utilizedQuotaQtl,
-          remainingQuotaQtl: lr.maxProcurementQuotaQtl - lr.utilizedQuotaQtl,
-        })),
-        bankAccount: farmer.bankAccounts?.[0]
-          ? {
-              bankName: farmer.bankAccounts[0].bankName,
-              accountMasked: farmer.bankAccounts[0].accountNumberMasked,
-              ifsc: farmer.bankAccounts[0].ifscCode,
-              pfmsBeneficiaryCode: farmer.bankAccounts[0].pfmsBeneficiaryCode,
-              isAadhaarLinked: farmer.bankAccounts[0].isAadhaarLinked,
-            }
-          : null,
-      },
+      farmer: fallback,
     });
+
+
   } catch {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }

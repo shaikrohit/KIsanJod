@@ -1,6 +1,6 @@
 // KisanJod - Slots API: Two-session visual timeline and dynamic continuous allocation for a centre on a date
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { standaloneStore } from "@/lib/standaloneStore";
 import { calculateHandlingDuration, addMinutesToTimeString } from "@/lib/handlingDuration";
 import {
   to12Hour,
@@ -26,17 +26,7 @@ export async function GET(
     const workers = parseInt(searchParams.get("workers") || "2", 10);
 
     // Fetch centre info for session hours & active palledar workers
-    const center = await db.procurementCenter.findUnique({
-      where: { id },
-      select: {
-        activeWorkers: true,
-        name: true,
-        morningSessionStart: true,
-        morningSessionEnd: true,
-        afternoonSessionStart: true,
-        afternoonSessionEnd: true,
-      },
-    }).catch(() => null);
+    const center = standaloneStore.getCentreById(id);
 
     const activeWorkers = center?.activeWorkers || 4;
 
@@ -65,23 +55,7 @@ export async function GET(
     const lunchBreakHours = parseFloat(((aftStartMin - mornEndMin) / 60).toFixed(1));
 
     // Fetch existing active bookings for this center and date
-    const existingBookings = await db.booking.findMany({
-      where: {
-        centerId: id,
-        bookedDate: date,
-        status: { not: "CANCELLED" },
-      },
-      select: {
-        id: true,
-        tokenNumber: true,
-        scheduledSlotStart: true,
-        scheduledSlotEnd: true,
-        sessionName: true,
-        packageCount: true,
-        cropName: true,
-      },
-      orderBy: { scheduledSlotStart: "asc" },
-    }).catch(() => []);
+    const existingBookings = standaloneStore.getCentreActiveBookings(id, date);
 
     // 1. Separate bookings into morning and afternoon sessions
     const morningBookingsRaw = existingBookings.filter((bk) => {

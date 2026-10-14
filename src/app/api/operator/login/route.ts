@@ -1,6 +1,6 @@
-// KisanJod - Operator Auth API
+// KisanJod - Operator Auth API (100% Standalone Self-Contained)
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { standaloneStore } from "@/lib/standaloneStore";
 
 export async function POST(req: NextRequest) {
   try {
@@ -11,12 +11,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Employee ID and PIN required" }, { status: 400 });
     }
 
-    const operator = await db.operator.findUnique({
-      where: { employeeId },
-      include: { center: true },
-    });
+    const operator = standaloneStore.authenticateOperator(employeeId, pin);
 
-    if (!operator || operator.pinCode !== pin) {
+    if (!operator) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
 
@@ -35,7 +32,8 @@ export async function POST(req: NextRequest) {
         },
       },
     });
-  } catch {
+  } catch (err) {
+    console.error("Operator Login error:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

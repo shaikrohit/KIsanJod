@@ -1,6 +1,5 @@
 // KisanJod - Auth API: Login with Aadhaar
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
 
 const FALLBACK_PERSONAS: Record<string, { id: string; fullName: string }> = {
   farmer_001: { id: "farmer_001", fullName: "Gurpreet Singh" },
@@ -39,28 +38,7 @@ export async function POST(req: NextRequest) {
     else if (firstDigit === "2") farmerIdTarget = "farmer_002";
     else if (firstDigit === "3") farmerIdTarget = "farmer_003";
 
-    let farmer: { id: string; fullName: string } | null = null;
-    try {
-      farmer = await db.farmer.findFirst({
-        where: {
-          OR: [{ aadhaarNumber: cleaned }, { id: farmerIdTarget }],
-        },
-        include: { landRecords: true, bankAccounts: true },
-      });
-
-      if (!farmer) {
-        farmer = await db.farmer.findFirst({
-          include: { landRecords: true, bankAccounts: true },
-        });
-      }
-    } catch (dbErr) {
-      console.warn("Database pooler blip during login, falling back to persona:", dbErr);
-      farmer = FALLBACK_PERSONAS[farmerIdTarget] || FALLBACK_PERSONAS.farmer_001;
-    }
-
-    if (!farmer) {
-      farmer = FALLBACK_PERSONAS[farmerIdTarget] || FALLBACK_PERSONAS.farmer_001;
-    }
+    const farmer = FALLBACK_PERSONAS[farmerIdTarget] || FALLBACK_PERSONAS.farmer_001;
 
     // Send mock OTP
     return NextResponse.json({
