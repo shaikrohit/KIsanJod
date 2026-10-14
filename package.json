@@ -18,6 +18,7 @@
     "test:sync": "tsx scripts/verify_realtime_sync.ts",
     "test:e2e": "tsx scripts/run_e2e_tests.ts",
     "test:full": "tsx scripts/verify_full_system.ts",
+    "test:standalone": "tsx scripts/verify_local_standalone.ts",
     "db:switch": "node scripts/switch_db.js"
   },
   "dependencies": {
