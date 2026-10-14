@@ -52,12 +52,13 @@ function request(
 }
 
 async function verifyLocalStandalone() {
+  const port = process.env.PORT || "3000";
+  const LOCAL = `http://localhost:${port}`;
   console.log("==================================================================");
   console.log("     KISANJOD ZERO-DEPENDENCY STANDALONE INTEGRITY VERIFICATION   ");
-  console.log("               Target: http://localhost:3005                      ");
+  console.log(`               Target: ${LOCAL}                      `);
   console.log("==================================================================\n");
 
-  const LOCAL = "http://localhost:3005";
   let passed = 0;
   let failed = 0;
 

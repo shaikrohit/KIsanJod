@@ -67,6 +67,7 @@ export async function POST(req: NextRequest) {
           mspRate: res.bill?.notifiedMspRate,
           netPayable: res.bill?.netAmountPayable,
           pfmsRef: res.bill?.dbtPayment?.pfmsReferenceNumber,
+          digitalSealHash: res.bill?.digitalSealHash,
         },
       });
     }
